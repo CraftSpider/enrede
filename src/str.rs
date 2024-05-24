@@ -303,11 +303,12 @@ impl Str<Utf32> {
     /// Attemp to convert a [`Str<Utf32>`] directly into a [`&[char]`]. This will fail if the `Str`
     /// is not sufficiently aligned for a `char`.
     pub fn try_chars(&self) -> Option<&[char]> {
+        let len = self.1.len();
         let ptr = ptr::from_ref(&self.1);
         if (ptr.cast::<()>() as usize) % mem::align_of::<char>() != 0 {
             None
         } else {
-            Some(unsafe { slice::from_raw_parts(ptr.cast(), ptr.len() / 4) })
+            Some(unsafe { slice::from_raw_parts(ptr.cast(), len / 4) })
         }
     }
 }
