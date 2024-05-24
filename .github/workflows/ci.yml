@@ -44,5 +44,5 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@nightly
         with:
-          components: rustfmt
+          components: miri
       - run: cargo miri test
