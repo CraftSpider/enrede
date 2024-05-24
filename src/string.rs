@@ -92,7 +92,13 @@ impl<E: Encoding> String<E> {
     /// Add a new character to this string. This method panics if the provided character isn't valid
     /// for the current encoding.
     pub fn push(&mut self, c: char) {
-        self.try_push(c).unwrap_or_else(|_| panic!("Invalid character '{:?}' for encoding {}", c, E::shorthand()));
+        self.try_push(c).unwrap_or_else(|_| {
+            panic!(
+                "Invalid character '{:?}' for encoding {}",
+                c,
+                E::shorthand()
+            )
+        });
     }
 
     /// Add a new character to this string. This method returns [`InvalidChar`] if the provided

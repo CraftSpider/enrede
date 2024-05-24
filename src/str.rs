@@ -3,13 +3,13 @@
 //! See also the [`Str<E>`] type.
 
 use bytemuck::must_cast_slice as cast_slice;
+use std::cmp::Ordering;
 use std::collections::Bound;
 use std::fmt::Write;
 use std::marker::PhantomData;
 use std::ops::{Index, RangeBounds};
 use std::slice::SliceIndex;
 use std::{fmt, mem, ptr, slice};
-use std::cmp::Ordering;
 
 use super::encoding::{Encoding, RecodeCause, Utf16, Utf32, Utf8, ValidateError};
 use super::string::String;
