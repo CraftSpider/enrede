@@ -59,19 +59,17 @@ pub trait Encoding: Sealed {
         str.char_indices().try_fold(0, |out_pos, (idx, c)| {
             match Self::encode(c, &mut out[out_pos..]) {
                 Ok(len) => Ok(out_pos + len),
-                Err(e) => {
-                    return Err(RecodeError {
-                        input_used: idx,
-                        output_valid: out_pos,
-                        cause: match e {
-                            EncodeError::NeedSpace { len } => RecodeCause::NeedSpace { len },
-                            EncodeError::InvalidChar => RecodeCause::InvalidChar {
-                                char: c,
-                                len: E::char_len(c),
-                            },
+                Err(e) => Err(RecodeError {
+                    input_used: idx,
+                    output_valid: out_pos,
+                    cause: match e {
+                        EncodeError::NeedSpace { len } => RecodeCause::NeedSpace { len },
+                        EncodeError::InvalidChar => RecodeCause::InvalidChar {
+                            char: c,
+                            len: E::char_len(c),
                         },
-                    })
-                }
+                    },
+                }),
             }
         })
     }
