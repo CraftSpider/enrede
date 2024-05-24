@@ -1,0 +1,8 @@
+[package]
+name = "enrede"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bytemuck = { version = "1.16", features = ["derive", "must_cast"] }
+arrayvec = "0.7"
