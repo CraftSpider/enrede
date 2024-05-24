@@ -17,7 +17,11 @@
 //!   - Constant length encodings
 //!   - Encodings with no invalid byte sequences
 
-#![warn(elided_lifetimes_in_paths, missing_docs)]
+#![warn(
+    elided_lifetimes_in_paths,
+    missing_docs,
+    clippy::cargo,
+)]
 
 macro_rules! arrvec {
     ($($elem:expr),*) => {
