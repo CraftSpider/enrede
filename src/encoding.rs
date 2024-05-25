@@ -5,14 +5,17 @@
 //! want more low-level encoding operations, you can perform them directly through methods such
 //! as [`Encoding::encode`].
 
+use std::slice;
 use crate::str::Str;
 use arrayvec::ArrayVec;
 
 mod ascii;
+mod iso;
 mod utf;
 mod win;
 
 pub use ascii::*;
+pub use iso::*;
 pub use utf::*;
 pub use win::*;
 
@@ -20,6 +23,29 @@ mod sealed {
     pub trait Sealed: Sized {}
 }
 use sealed::Sealed;
+
+#[doc(hidden)]
+pub trait ArrayLike {
+    fn slice(&self) -> &[u8];
+}
+
+impl<const N: usize> ArrayLike for ArrayVec<u8, N> {
+    fn slice(&self) -> &[u8] {
+        self
+    }
+}
+
+impl<const N: usize> ArrayLike for [u8; N] {
+    fn slice(&self) -> &[u8] {
+        self
+    }
+}
+
+impl ArrayLike for u8 {
+    fn slice(&self) -> &[u8] {
+        slice::from_ref(self)
+    }
+}
 
 /// An arbitrary encoding. Examples include [`Utf8`], [`Ascii`], or [`Win1252`].
 ///
@@ -30,6 +56,8 @@ pub trait Encoding: Sealed {
     const REPLACEMENT: char;
     #[doc(hidden)]
     const MAX_LEN: usize;
+    #[doc(hidden)]
+    type Bytes: ArrayLike;
 
     #[doc(hidden)]
     fn shorthand() -> &'static str;
@@ -42,10 +70,11 @@ pub trait Encoding: Sealed {
     fn encode(char: char, out: &mut [u8]) -> Result<usize, EncodeError> {
         match Self::encode_char(char) {
             Some(a) => {
+                let a = a.slice();
                 if a.len() > out.len() {
                     Err(EncodeError::NeedSpace { len: a.len() })
                 } else {
-                    out[..a.len()].copy_from_slice(&a);
+                    out[..a.len()].copy_from_slice(a);
                     Ok(a.len())
                 }
             }
@@ -74,9 +103,8 @@ pub trait Encoding: Sealed {
         })
     }
 
-    // TODO: MAX_LEN length cap
     #[doc(hidden)]
-    fn encode_char(c: char) -> Option<ArrayVec<u8, 4>>;
+    fn encode_char(c: char) -> Option<Self::Bytes>;
     #[doc(hidden)]
     fn decode_char(str: &Str<Self>) -> (char, &Str<Self>);
 

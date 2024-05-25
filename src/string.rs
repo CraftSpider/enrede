@@ -7,7 +7,7 @@ use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::string::String as StdString;
 
-use super::encoding::{Encoding, Utf8, ValidateError};
+use super::encoding::{ArrayLike, Encoding, Utf8, ValidateError};
 use super::str::Str;
 
 mod chunks;
@@ -109,7 +109,7 @@ impl<E: Encoding> String<E> {
     /// Add a new character to this string. This method returns [`InvalidChar`] if the provided
     /// character isn't valid for the current encoding.
     pub fn try_push(&mut self, c: char) -> Result<(), InvalidChar> {
-        self.1.extend(E::encode_char(c).ok_or(InvalidChar)?);
+        self.1.extend(E::encode_char(c).ok_or(InvalidChar)?.slice());
         Ok(())
     }
 

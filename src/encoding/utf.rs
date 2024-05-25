@@ -12,6 +12,7 @@ impl Sealed for Utf8 {}
 impl Encoding for Utf8 {
     const REPLACEMENT: char = '\u{FFFD}';
     const MAX_LEN: usize = 4;
+    type Bytes = ArrayVec<u8, 4>;
 
     fn shorthand() -> &'static str {
         "utf8"
@@ -26,11 +27,9 @@ impl Encoding for Utf8 {
             })
     }
 
-    fn encode_char(c: char) -> Option<ArrayVec<u8, 4>> {
+    fn encode_char(c: char) -> Option<Self::Bytes> {
         let mut out = [0; 4];
-        dbg!(c);
         let res = c.encode_utf8(&mut out);
-        dbg!(&res);
         let mut out = ArrayVec::new();
         out.extend(res.as_bytes().iter().copied());
         Some(out)
@@ -53,191 +52,130 @@ impl Encoding for Utf8 {
 /// The [UTF-16](https://en.wikipedia.org/wiki/UTF-16) encoding
 pub type Utf16 = Utf16LE;
 
-/// The [UTF-16BE](https://en.wikipedia.org/wiki/UTF-16#Byte-order_encoding_schemes) encoding
-#[non_exhaustive]
-pub struct Utf16BE;
+macro_rules! utf16_impl {
+    (
+        $name:ident,
+        $shorthand:literal,
+        $method_from:ident,
+        $method_to:ident,
+        $idx_add:literal,
+        $docname:literal,
+    ) => {
+        #[doc = "The ["]
+        #[doc = $docname]
+        #[doc = "](https://en.wikipedia.org/wiki/UTF-16#Byte-order_encoding_schemes) encoding"]
+        #[non_exhaustive]
+        pub struct $name;
 
-impl Sealed for Utf16BE {}
+        impl Sealed for $name {}
 
-impl Encoding for Utf16BE {
-    const REPLACEMENT: char = '\u{FFFD}';
-    const MAX_LEN: usize = 4;
+        impl Encoding for $name {
+            const REPLACEMENT: char = '\u{FFFD}';
+            const MAX_LEN: usize = 4;
+            type Bytes = ArrayVec<u8, 4>;
 
-    fn shorthand() -> &'static str {
-        "utf16be"
-    }
-
-    fn validate(bytes: &[u8]) -> Result<(), ValidateError> {
-        let mut surrogate = false;
-
-        for (idx, chunk) in bytes.chunks(2).enumerate() {
-            if chunk.len() != 2 {
-                return Err(ValidateError {
-                    valid_up_to: idx * 2,
-                    error_len: None,
-                });
+            fn shorthand() -> &'static str {
+                $shorthand
             }
 
-            let c = u16::from_be_bytes([chunk[0], chunk[1]]);
-            if !surrogate && (0xD800..0xDC00).contains(&c) {
-                surrogate = true;
-            } else if surrogate && (0xDC00..0xE000).contains(&c) {
-                surrogate = false;
-            } else if surrogate || !((..0xD800).contains(&c) || (0xE000..).contains(&c)) {
-                let err_len = if surrogate && !((..0xD800).contains(&c) || (0xE000..).contains(&c))
-                {
-                    4
+            fn validate(bytes: &[u8]) -> Result<(), ValidateError> {
+                let mut surrogate = false;
+
+                for (idx, chunk) in bytes.chunks(2).enumerate() {
+                    if chunk.len() != 2 {
+                        return Err(ValidateError {
+                            valid_up_to: idx * 2,
+                            error_len: None,
+                        });
+                    }
+
+                    let c = u16::$method_from([chunk[0], chunk[1]]);
+                    if !surrogate && (0xD800..0xDC00).contains(&c) {
+                        surrogate = true;
+                    } else if surrogate && (0xDC00..0xE000).contains(&c) {
+                        surrogate = false;
+                    } else if surrogate || !((..0xD800).contains(&c) || (0xE000..).contains(&c)) {
+                        let err_len = if surrogate && !((..0xD800).contains(&c) || (0xE000..).contains(&c))
+                        {
+                            4
+                        } else {
+                            2
+                        };
+                        let idx = if surrogate { idx - 1 } else { idx };
+                        return Err(ValidateError {
+                            valid_up_to: idx * 2,
+                            error_len: Some(err_len),
+                        });
+                    }
+                }
+                if surrogate {
+                    return Err(ValidateError {
+                        valid_up_to: bytes.len() - 2,
+                        error_len: None,
+                    });
+                }
+
+                Ok(())
+            }
+
+            fn encode_char(c: char) -> Option<Self::Bytes> {
+                let mut out = [0; 2];
+                let res = c.encode_utf16(&mut out);
+                let mut out = ArrayVec::new();
+                out.extend(res[0].$method_to());
+                if res.len() > 1 {
+                    out.extend(res[1].$method_to());
+                }
+                Some(out)
+            }
+
+            fn decode_char(str: &Str<Self>) -> (char, &Str<Self>) {
+                let bytes = str.as_bytes();
+                let high = u16::$method_from([bytes[0], bytes[1]]);
+                if (..0xD800).contains(&high) || (0xE000..).contains(&high) {
+                    // SAFETY: We just confirmed `high` is not in the surrogate range, and is thus a valid
+                    //         `char`.
+                    let c = unsafe { char::from_u32_unchecked(high as u32) };
+                    (c, &str[2..])
                 } else {
-                    2
-                };
-                let idx = if surrogate { idx - 1 } else { idx };
-                return Err(ValidateError {
-                    valid_up_to: idx * 2,
-                    error_len: Some(err_len),
-                });
+                    let low = u16::$method_from([bytes[2], bytes[3]]);
+
+                    let high = (high as u32 - 0xD800) * 0x400;
+                    let low = low as u32 - 0xDC00;
+                    // SAFETY: Str is valid UTF-16, as such, all surrogate pairs will produce a valid `char`
+                    let c = unsafe { char::from_u32_unchecked(high + low + 0x10000) };
+                    (c, &str[4..])
+                }
+            }
+
+            fn char_bound(str: &Str<Self>, idx: usize) -> bool {
+                idx % 2 == 0 && !(0xD8..0xE0).contains(&str.as_bytes()[idx + $idx_add])
+            }
+
+            fn char_len(c: char) -> usize {
+                c.len_utf16()
             }
         }
-        if surrogate {
-            return Err(ValidateError {
-                valid_up_to: bytes.len() - 2,
-                error_len: None,
-            });
-        }
-
-        Ok(())
-    }
-
-    fn encode_char(c: char) -> Option<ArrayVec<u8, 4>> {
-        let mut out = [0; 2];
-        let res = c.encode_utf16(&mut out);
-        let mut out = ArrayVec::new();
-        out.extend(res[0].to_be_bytes());
-        if res.len() > 1 {
-            out.extend(res[1].to_be_bytes());
-        }
-        Some(out)
-    }
-
-    fn decode_char(str: &Str<Self>) -> (char, &Str<Self>) {
-        let bytes = str.as_bytes();
-        let high = u16::from_be_bytes([bytes[0], bytes[1]]);
-        if (..0xD800).contains(&high) || (0xE000..).contains(&high) {
-            // SAFETY: We just confirmed `high` is not in the surrogate range, and is thus a valid
-            //         `char`.
-            let c = unsafe { char::from_u32_unchecked(high as u32) };
-            (c, &str[2..])
-        } else {
-            let low = u16::from_be_bytes([bytes[2], bytes[3]]);
-
-            let high = (high as u32 - 0xD800) * 0x400;
-            let low = low as u32 - 0xDC00;
-            // SAFETY: Str is valid UTF-16, as such, all surrogate pairs will produce a valid `char`
-            let c = unsafe { char::from_u32_unchecked(high + low + 0x10000) };
-            (c, &str[4..])
-        }
-    }
-
-    fn char_bound(str: &Str<Self>, idx: usize) -> bool {
-        idx % 2 == 0 && !(0xD8..0xE0).contains(&str.as_bytes()[idx + 1])
-    }
-
-    fn char_len(c: char) -> usize {
-        c.len_utf16()
-    }
+    };
 }
 
-/// The [UTF-16LE](https://en.wikipedia.org/wiki/UTF-16#Byte-order_encoding_schemes) encoding
-#[non_exhaustive]
-pub struct Utf16LE;
+utf16_impl!(
+    Utf16BE,
+    "utf16be",
+    from_be_bytes,
+    to_be_bytes,
+    1,
+    "UTF-16BE",
+);
 
-impl Sealed for Utf16LE {}
-
-impl Encoding for Utf16LE {
-    const REPLACEMENT: char = '\u{FFFD}';
-    const MAX_LEN: usize = 4;
-
-    fn shorthand() -> &'static str {
-        "utf16le"
-    }
-
-    fn validate(bytes: &[u8]) -> Result<(), ValidateError> {
-        let mut surrogate = false;
-
-        for (idx, chunk) in bytes.chunks(2).enumerate() {
-            if chunk.len() != 2 {
-                return Err(ValidateError {
-                    valid_up_to: idx * 2,
-                    error_len: None,
-                });
-            }
-
-            let c = u16::from_le_bytes([chunk[0], chunk[1]]);
-            if !surrogate && (0xD800..0xDC00).contains(&c) {
-                surrogate = true;
-            } else if surrogate && (0xDC00..0xE000).contains(&c) {
-                surrogate = false;
-            } else if surrogate || !((..0xD800).contains(&c) || (0xE000..).contains(&c)) {
-                let err_len = if surrogate && !((..0xD800).contains(&c) || (0xE000..).contains(&c))
-                {
-                    4
-                } else {
-                    2
-                };
-                let idx = if surrogate { idx - 1 } else { idx };
-                return Err(ValidateError {
-                    valid_up_to: idx * 2,
-                    error_len: Some(err_len),
-                });
-            }
-        }
-        if surrogate {
-            return Err(ValidateError {
-                valid_up_to: bytes.len() - 2,
-                error_len: None,
-            });
-        }
-
-        Ok(())
-    }
-
-    fn encode_char(c: char) -> Option<ArrayVec<u8, 4>> {
-        let mut out = [0; 2];
-        let res = c.encode_utf16(&mut out);
-        let mut out = ArrayVec::new();
-        out.extend(res[0].to_le_bytes());
-        if res.len() > 1 {
-            out.extend(res[1].to_le_bytes());
-        }
-        Some(out)
-    }
-
-    fn decode_char(str: &Str<Self>) -> (char, &Str<Self>) {
-        let bytes = str.as_bytes();
-        let high = u16::from_le_bytes([bytes[0], bytes[1]]);
-        if (..0xD800).contains(&high) || (0xE000..).contains(&high) {
-            // SAFETY: We just confirmed `high` is not in the surrogate range, and is thus a valid
-            //         `char`.
-            let c = unsafe { char::from_u32_unchecked(high as u32) };
-            (c, &str[2..])
-        } else {
-            let low = u16::from_le_bytes([bytes[2], bytes[3]]);
-
-            let high = (high as u32 - 0xD800) * 0x400;
-            let low = low as u32 - 0xDC00;
-            // SAFETY: Str is valid UTF-16, as such, all surrogate pairs will produce a valid `char`
-            let c = unsafe { char::from_u32_unchecked(high + low + 0x10000) };
-            (c, &str[4..])
-        }
-    }
-
-    fn char_bound(str: &Str<Self>, idx: usize) -> bool {
-        idx % 2 == 0 && !(0xD8..0xE0).contains(&str.as_bytes()[idx])
-    }
-
-    fn char_len(c: char) -> usize {
-        c.len_utf16()
-    }
-}
+utf16_impl!(
+    Utf16LE,
+    "utf16le",
+    from_le_bytes,
+    to_le_bytes,
+    0,
+    "UTF-16LE",
+);
 
 /// The [UTF-32](https://en.wikipedia.org/wiki/UTF-32) encoding
 #[non_exhaustive]
@@ -248,6 +186,7 @@ impl Sealed for Utf32 {}
 impl Encoding for Utf32 {
     const REPLACEMENT: char = '\u{FFFD}';
     const MAX_LEN: usize = 4;
+    type Bytes = [u8; 4];
 
     fn shorthand() -> &'static str {
         "utf32"
@@ -263,7 +202,7 @@ impl Encoding for Utf32 {
             }
 
             let c = u32::from_ne_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
-            if (0xD800..0xE000).contains(&c) || (0x110000..).contains(&c) {
+            if (0xD800..0xE000).contains(&c) || (0x0011_0000..).contains(&c) {
                 return Err(ValidateError {
                     valid_up_to: idx * 4,
                     error_len: Some(4),
@@ -274,8 +213,8 @@ impl Encoding for Utf32 {
         Ok(())
     }
 
-    fn encode_char(c: char) -> Option<ArrayVec<u8, 4>> {
-        Some(ArrayVec::from((c as u32).to_le_bytes()))
+    fn encode_char(c: char) -> Option<Self::Bytes> {
+        Some((c as u32).to_le_bytes())
     }
 
     fn decode_char(str: &Str<Self>) -> (char, &Str<Self>) {
@@ -300,6 +239,7 @@ mod tests {
     use super::*;
     use bytemuck::must_cast_slice as cast_slice;
 
+    #[allow(clippy::octal_escapes)]
     #[test]
     fn test_validate_utf16_le() {
         assert!(Utf16LE::validate(b"a\0b\0c\01\02\03\0").is_ok());
@@ -340,15 +280,18 @@ mod tests {
 
     #[test]
     fn test_encode_utf16_le() {
-        assert_eq!(Utf16LE::encode_char('A'), Some(arrvec![b'A', 0]));
+        let mut expect = ArrayVec::new();
+        expect.extend([b'A', 0]);
+        assert_eq!(Utf16LE::encode_char('A'), Some(expect));
         assert_eq!(
             Utf16LE::encode_char('𐐷'),
-            Some(arrvec![0x01, 0xD8, 0x37, 0xDC])
+            Some(ArrayVec::from([0x01, 0xD8, 0x37, 0xDC]))
         );
     }
 
     #[test]
     fn test_decode_utf16_le() {
+        // SAFETY: This test data is guaranteed valid
         let str = unsafe { Str::from_bytes_unchecked(b"A\0\x01\xD8\x37\xDCb\0") };
         let (c, str) = Utf16LE::decode_char(str);
         assert_eq!(c, 'A');
@@ -358,6 +301,7 @@ mod tests {
         assert_eq!(c, 'b');
     }
 
+    #[allow(clippy::octal_escapes)]
     #[test]
     fn test_validate_utf16_be() {
         assert!(Utf16BE::validate(b"\0a\0b\0c\01\02\03").is_ok());
@@ -398,15 +342,18 @@ mod tests {
 
     #[test]
     fn test_encode_utf16_be() {
-        assert_eq!(Utf16BE::encode_char('A'), Some(arrvec![0, b'A']));
+        let mut expect = ArrayVec::new();
+        expect.extend([0, b'A']);
+        assert_eq!(Utf16BE::encode_char('A'), Some(expect));
         assert_eq!(
             Utf16BE::encode_char('𐐷'),
-            Some(arrvec![0xD8, 0x01, 0xDC, 0x37])
+            Some(ArrayVec::from([0xD8, 0x01, 0xDC, 0x37]))
         );
     }
 
     #[test]
     fn test_decode_utf16_be() {
+        // SAFETY: This test data is guaranteed valid
         let str = unsafe { Str::from_bytes_unchecked(b"\0A\xD8\x01\xDC\x37\0b") };
         let (c, str) = Utf16BE::decode_char(str);
         assert_eq!(c, 'A');
@@ -429,7 +376,7 @@ mod tests {
             })
         );
         assert_eq!(
-            Utf32::validate(cast_slice(&[0x110000])),
+            Utf32::validate(cast_slice(&[0x0011_0000])),
             Err(ValidateError {
                 valid_up_to: 0,
                 error_len: Some(4),
@@ -439,10 +386,10 @@ mod tests {
 
     #[test]
     fn test_encode_utf32() {
-        assert_eq!(Utf32::encode_char('A'), Some(arrvec![b'A', 0, 0, 0]));
+        assert_eq!(Utf32::encode_char('A'), Some([b'A', 0, 0, 0]));
         assert_eq!(
             Utf32::encode_char('𐐷'),
-            Some(arrvec![0x37, 0x04, 0x01, 0x00])
+            Some([0x37, 0x04, 0x01, 0x00])
         );
     }
 

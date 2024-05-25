@@ -1,7 +1,6 @@
 use crate::encoding::sealed::Sealed;
 use crate::encoding::ValidateError;
 use crate::{Encoding, Str};
-use arrayvec::ArrayVec;
 
 /// The [ASCII](https://en.wikipedia.org/wiki/ASCII) encoding.
 #[non_exhaustive]
@@ -12,6 +11,7 @@ impl Sealed for Ascii {}
 impl Encoding for Ascii {
     const REPLACEMENT: char = '\x1A';
     const MAX_LEN: usize = 1;
+    type Bytes = u8;
 
     fn shorthand() -> &'static str {
         "ascii"
@@ -30,13 +30,11 @@ impl Encoding for Ascii {
         })
     }
 
-    fn encode_char(c: char) -> Option<ArrayVec<u8, 4>> {
+    fn encode_char(c: char) -> Option<Self::Bytes> {
         if c as u32 > 127 {
             None
         } else {
-            let mut arr = ArrayVec::new();
-            arr.push(c as u8);
-            Some(arr)
+            Some(c as u8)
         }
     }
 
@@ -68,6 +66,7 @@ impl Sealed for ExtendedAscii {}
 impl Encoding for ExtendedAscii {
     const REPLACEMENT: char = '\x1A';
     const MAX_LEN: usize = 1;
+    type Bytes = u8;
 
     fn shorthand() -> &'static str {
         "ascii_ext"
@@ -77,9 +76,9 @@ impl Encoding for ExtendedAscii {
         Ok(())
     }
 
-    fn encode_char(c: char) -> Option<ArrayVec<u8, 4>> {
+    fn encode_char(c: char) -> Option<Self::Bytes> {
         if (c as u32) < 256 {
-            Some(arrvec![c as u8])
+            Some(c as u8)
         } else {
             None
         }
@@ -128,13 +127,14 @@ mod tests {
 
     #[test]
     fn test_encode_ascii() {
-        assert_eq!(Ascii::encode_char('A'), Some(arrvec![b'A']));
+        assert_eq!(Ascii::encode_char('A'), Some(b'A'));
         assert_eq!(Ascii::encode_char('\u{80}'), None);
         assert_eq!(Ascii::encode_char('𐐷'), None);
     }
 
     #[test]
     fn test_decode_ascii() {
+        // SAFETY: This test data is guaranteed valid
         let str = unsafe { Str::from_bytes_unchecked(b"A simple sentence") };
         let (c, str) = Ascii::decode_char(str);
         assert_eq!(c, 'A');

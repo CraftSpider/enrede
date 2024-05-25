@@ -1,7 +1,6 @@
 use crate::encoding::sealed::Sealed;
 use crate::encoding::{Encoding, ValidateError};
 use crate::str::Str;
-use arrayvec::ArrayVec;
 
 const DECODE_MAP_1251: [char; 128] = [
     'Ђ', 'Ѓ', '‚', 'ѓ', '„', '…', '†', '‡', '€', '‰', 'Љ', '‹', 'Њ', 'Ќ', 'Ћ', 'Џ', 'ђ', '‘', '’',
@@ -27,6 +26,7 @@ impl Sealed for Win1251 {}
 impl Encoding for Win1251 {
     const REPLACEMENT: char = '\x1A';
     const MAX_LEN: usize = 1;
+    type Bytes = u8;
 
     fn shorthand() -> &'static str {
         "win1251"
@@ -45,12 +45,12 @@ impl Encoding for Win1251 {
         })
     }
 
-    fn encode_char(c: char) -> Option<ArrayVec<u8, 4>> {
+    fn encode_char(c: char) -> Option<Self::Bytes> {
         if (..0x80).contains(&(c as u32)) {
-            Some(arrvec![c as u8])
+            Some(c as u8)
         } else {
             let pos = DECODE_MAP_1251.iter().position(|v| *v == c)? as u8;
-            Some(arrvec![pos + 0x80])
+            Some(pos + 0x80)
         }
     }
 
@@ -68,6 +68,7 @@ impl Encoding for Win1251 {
     }
 
     fn char_len(c: char) -> usize {
+        // TODO: This is wrong
         if c as u32 == 0x98 || (c as u32) > 255 {
             0
         } else {
@@ -85,6 +86,7 @@ impl Sealed for Win1252 {}
 impl Encoding for Win1252 {
     const REPLACEMENT: char = '\x1A';
     const MAX_LEN: usize = 1;
+    type Bytes = u8;
 
     fn shorthand() -> &'static str {
         "win1252"
@@ -103,12 +105,12 @@ impl Encoding for Win1252 {
         })
     }
 
-    fn encode_char(c: char) -> Option<ArrayVec<u8, 4>> {
+    fn encode_char(c: char) -> Option<Self::Bytes> {
         if (..0x80).contains(&(c as u32)) || (0xA0..0x100).contains(&(c as u32)) {
-            Some(arrvec![c as u8])
+            Some(c as u8)
         } else {
             let pos = DECODE_MAP_1252.iter().position(|v| *v == c)? as u8;
-            Some(arrvec![pos + 0x80])
+            Some(pos + 0x80)
         }
     }
 
@@ -126,6 +128,7 @@ impl Encoding for Win1252 {
     }
 
     fn char_len(c: char) -> usize {
+        // TODO: This is wrong
         if [0x82, 0x8D, 0x8F, 0x90, 0x9D].contains(&(c as u32)) || c as u32 > 255 {
             0
         } else {
@@ -144,6 +147,7 @@ impl Sealed for Win1252Loose {}
 impl Encoding for Win1252Loose {
     const REPLACEMENT: char = '\x1A';
     const MAX_LEN: usize = 1;
+    type Bytes = u8;
 
     fn shorthand() -> &'static str {
         "win1252_loose"
@@ -154,12 +158,12 @@ impl Encoding for Win1252Loose {
         Ok(())
     }
 
-    fn encode_char(c: char) -> Option<ArrayVec<u8, 4>> {
+    fn encode_char(c: char) -> Option<Self::Bytes> {
         if (..0x80).contains(&(c as u32)) || (0xA0..0x100).contains(&(c as u32)) {
-            Some(arrvec![c as u8])
+            Some(c as u8)
         } else {
             let pos = DECODE_MAP_1252.iter().position(|v| *v == c)? as u8;
-            Some(arrvec![pos + 0x80])
+            Some(pos + 0x80)
         }
     }
 
@@ -182,5 +186,84 @@ impl Encoding for Win1252Loose {
         } else {
             1
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_validate_win1251() {
+        assert!(Win1251::validate(b"01\xD5\xFF").is_ok());
+        assert_eq!(
+            Win1251::validate(b"0\xFF\x97\x98\x99"),
+            Err(ValidateError {
+                valid_up_to: 3,
+                error_len: Some(1),
+            })
+        );
+    }
+
+    #[test]
+    fn test_encode_win1251() {
+        assert_eq!(Win1251::encode_char('A'), Some(b'A'));
+        assert_eq!(Win1251::encode_char('Ђ'), Some(0x80));
+        assert_eq!(Win1251::encode_char('я'), Some(0xFF));
+        assert_eq!(
+            Win1251::encode_char('𐐷'),
+            None,
+        );
+    }
+
+    #[test]
+    fn test_decode_win1251() {
+        // SAFETY: This test data is guaranteed valid
+        let str = unsafe { Str::from_bytes_unchecked(b"A\x80\xFF\0") };
+        let (c, str) = Win1251::decode_char(str);
+        assert_eq!(c, 'A');
+        let (c, str) = Win1251::decode_char(str);
+        assert_eq!(c, 'Ђ');
+        let (c, str) = Win1251::decode_char(str);
+        assert_eq!(c, 'я');
+        let (c, _) = Win1251::decode_char(str);
+        assert_eq!(c, '\0');
+    }
+
+    #[test]
+    fn test_validate_win1252() {
+        assert!(Win1252::validate(b"01\xD5\xFF").is_ok());
+        assert_eq!(
+            Win1252::validate(b"0\xFF\x97\x9D\x99"),
+            Err(ValidateError {
+                valid_up_to: 3,
+                error_len: Some(1),
+            })
+        );
+    }
+
+    #[test]
+    fn test_encode_win1252() {
+        assert_eq!(Win1252::encode_char('A'), Some(b'A'));
+        assert_eq!(Win1252::encode_char('€'), Some(0x80));
+        assert_eq!(Win1252::encode_char('ÿ'), Some(0xFF));
+        assert_eq!(
+            Win1252::encode_char('𐐷'),
+            None,
+        );
+    }
+
+    #[test]
+    fn test_decode_win1252() {
+        // SAFETY: This test data is guaranteed valid
+        let str = unsafe { Str::from_bytes_unchecked(b"A\x80\xFF\0") };
+        let (c, str) = Win1252::decode_char(str);
+        assert_eq!(c, 'A');
+        let (c, str) = Win1252::decode_char(str);
+        assert_eq!(c, '€');
+        let (c, str) = Win1252::decode_char(str);
+        assert_eq!(c, 'ÿ');
+        let (c, _) = Win1252::decode_char(str);
+        assert_eq!(c, '\0');
     }
 }

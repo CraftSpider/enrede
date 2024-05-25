@@ -16,18 +16,9 @@
 //! - Extended methods for encodings following certain properties:
 //!   - Constant length encodings
 //!   - Encodings with no invalid byte sequences
+//! - `no_std` support
 
 #![warn(elided_lifetimes_in_paths, missing_docs, clippy::cargo)]
-
-macro_rules! arrvec {
-    ($($elem:expr),*) => {
-        {
-            let mut arr = ArrayVec::new();
-            $(arr.push($elem);)*
-            arr
-        }
-    };
-}
 
 pub mod encoding;
 pub mod str;
