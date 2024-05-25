@@ -5,6 +5,13 @@
 //! The name, `enrede`, is a double wordplay - **En**code/**Re**code/**De**code, and Enrede means
 //! 'tangled' or 'caught' in Spanish.
 //!
+//! ## `no_std` Support
+//!
+//! By default, the `std` and `alloc` features are enabled. By using `default-features = false`
+//! in your `Cargo.toml`, you can disable these features. When `std` is disabled, this crate
+//! is `no_std`. When the `alloc` feature is disabled, the crate won't use `alloc`, and any types
+//! or functions requiring allocation will be disabled (For example [`String<E>`]).
+//!
 //! ## Limitations
 //!
 //! Currently, it is assumed that all supported encodings are subsets of the Unicode character set.
