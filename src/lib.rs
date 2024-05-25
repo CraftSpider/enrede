@@ -17,6 +17,10 @@
 //!   - Constant length encodings
 //!   - Encodings with no invalid byte sequences
 //! - `no_std` support
+//! - More encodings
+//!   - Shift-JIS
+//!   - Big5
+//!   - ISO/IEC 8859-1
 
 #![warn(elided_lifetimes_in_paths, missing_docs, clippy::cargo)]
 

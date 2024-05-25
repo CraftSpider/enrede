@@ -227,3 +227,24 @@ impl From<String<Utf8>> for StdString {
         value.into_std()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_from_lossy_utf8() {
+        assert_eq!(
+            String::<Utf8>::from_bytes_lossy(b"Ab\xF0\x90\x90\xB7def"),
+            Cow::Borrowed(Str::from_std("Ab𐐷def")),
+        );
+        assert_eq!(
+            String::<Utf8>::from_bytes_lossy(b"Abcd \xD8\xF0\x90\x90\xB7"),
+            Cow::Owned(Str::from_std("Abcd �𐐷").to_owned()),
+        );
+        assert_eq!(
+            String::<Utf8>::from_bytes_lossy(b"A\xD8B\xD9C\xDAD"),
+            Cow::Owned(Str::from_std("A�B�C�D").to_owned()),
+        );
+    }
+}
