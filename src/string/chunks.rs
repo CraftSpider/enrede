@@ -1,6 +1,6 @@
 use crate::encoding::Encoding;
 use crate::str::Str;
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 pub(super) struct EncodedChunks<'a, E> {
     src: &'a [u8],

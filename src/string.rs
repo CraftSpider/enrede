@@ -2,13 +2,14 @@
 //! equivalent type.
 
 use core::fmt;
-use std::borrow::{Borrow, BorrowMut, Cow};
-use std::marker::PhantomData;
-use std::ops::{Deref, DerefMut};
-use std::string::String as StdString;
+use alloc::borrow::{Borrow, BorrowMut, Cow, ToOwned};
+use alloc::string::String as StdString;
+use alloc::vec::Vec;
+use core::marker::PhantomData;
+use core::ops::{Deref, DerefMut};
 
-use super::encoding::{ArrayLike, Encoding, Utf8, ValidateError};
-use super::str::Str;
+use crate::encoding::{ArrayLike, Encoding, Utf8, ValidateError};
+use crate::str::Str;
 
 mod chunks;
 

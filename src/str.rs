@@ -9,6 +9,10 @@ use core::marker::PhantomData;
 use core::ops::{Index, Bound, RangeBounds};
 use core::slice::SliceIndex;
 use core::{fmt, mem, ptr, slice};
+#[cfg(feature = "alloc")]
+use alloc::vec;
+#[cfg(feature = "alloc")]
+use alloc::borrow::ToOwned;
 
 use crate::encoding::{Encoding, Utf16, Utf32, Utf8, ValidateError};
 #[cfg(feature = "alloc")]
