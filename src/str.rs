@@ -3,16 +3,18 @@
 //! See also the [`Str<E>`] type.
 
 use bytemuck::must_cast_slice as cast_slice;
-use std::cmp::Ordering;
-use std::collections::Bound;
-use std::fmt::Write;
-use std::marker::PhantomData;
-use std::ops::{Index, RangeBounds};
-use std::slice::SliceIndex;
-use std::{fmt, mem, ptr, slice};
+use core::cmp::Ordering;
+use core::fmt::Write;
+use core::marker::PhantomData;
+use core::ops::{Index, Bound, RangeBounds};
+use core::slice::SliceIndex;
+use core::{fmt, mem, ptr, slice};
 
-use super::encoding::{Encoding, RecodeCause, Utf16, Utf32, Utf8, ValidateError};
-use super::string::String;
+use crate::encoding::{Encoding, Utf16, Utf32, Utf8, ValidateError};
+#[cfg(feature = "alloc")]
+use crate::encoding::RecodeCause;
+#[cfg(feature = "alloc")]
+use crate::string::String;
 
 mod iter;
 
@@ -209,6 +211,7 @@ impl<E: Encoding> Str<E> {
     /// Get this `Str` in a different [`Encoding`]. This method allocates a new [`String`] with the
     /// desired encoding, and returns an error if the source string contains any characters that
     /// cannot be represented in the destination encoding.
+    #[cfg(feature = "alloc")]
     pub fn recode<E2: Encoding>(&self) -> Result<String<E2>, RecodeError> {
         let mut ptr = self;
         let mut total_len = 0;
@@ -242,6 +245,7 @@ impl<E: Encoding> Str<E> {
     /// Get this `Str` in a different [`Encoding`]. This method allocates a new [`String`] with the
     /// desired encoding, replacing any characters that can't be represented in the destination
     /// encoding with the encoding's replacement character.
+    #[cfg(feature = "alloc")]
     pub fn recode_lossy<E2: Encoding>(&self) -> String<E2> {
         let mut ptr = self;
         let mut total_len = 0;
@@ -299,7 +303,7 @@ impl Str<Utf8> {
     /// Convert a [`Str<Utf8>`] directly into a [`str`]
     pub fn as_std(&self) -> &str {
         // SAFETY: `&Str` is UTF-8 by our validity guarantees.
-        unsafe { std::str::from_utf8_unchecked(&self.1) }
+        unsafe { core::str::from_utf8_unchecked(&self.1) }
     }
 }
 
@@ -383,6 +387,7 @@ impl<E: Encoding> Default for &Str<E> {
     }
 }
 
+#[cfg(feature = "alloc")]
 impl<E: Encoding> ToOwned for Str<E> {
     type Owned = String<E>;
 
@@ -436,6 +441,8 @@ impl<'a> From<&'a [char]> for &'a Str<Utf32> {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(not(feature = "alloc"))]
+    compile_error!("Tests require `alloc` feature");
     use super::*;
     use crate::encoding::{Ascii, Win1252};
 

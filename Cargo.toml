@@ -8,6 +8,11 @@ description = "An easy-to-use string encoding library, providing an interface si
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/CraftSpider/enrede"
 
+[features]
+defaults = ["std"]
+std = ["alloc"]
+alloc = []
+
 [dependencies]
 bytemuck = { version = "1.16", features = ["derive", "must_cast"] }
 arrayvec = "0.7"

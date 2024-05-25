@@ -5,9 +5,9 @@
 //! want more low-level encoding operations, you can perform them directly through methods such
 //! as [`Encoding::encode`].
 
-use std::slice;
-use crate::str::Str;
+use core::slice;
 use arrayvec::ArrayVec;
+use crate::str::Str;
 
 mod ascii;
 mod iso;

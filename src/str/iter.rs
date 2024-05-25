@@ -1,8 +1,8 @@
 use crate::encoding::Encoding;
 use crate::str::Str;
-use std::iter::FusedIterator;
-use std::marker::PhantomData;
-use std::slice;
+use core::iter::FusedIterator;
+use core::marker::PhantomData;
+use core::slice;
 
 /// Character iterator for encoded strings. This iterates the encoding yielding Unicode code points.
 pub struct Chars<'a, E> {

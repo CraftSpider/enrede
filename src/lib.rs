@@ -16,7 +16,6 @@
 //! - Extended methods for encodings following certain properties:
 //!   - Constant length encodings
 //!   - Encodings with no invalid byte sequences
-//! - `no_std` support
 //! - More encodings
 //!   - Shift-JIS
 //!   - Big5
@@ -24,10 +23,17 @@
 
 #![warn(elided_lifetimes_in_paths, missing_docs, clippy::cargo)]
 
+#![cfg_attr(not(feature = "std"), no_std)]
+
+#[cfg(feature = "alloc")]
+extern crate alloc;
+
 pub mod encoding;
 pub mod str;
+#[cfg(feature = "alloc")]
 pub mod string;
 
 pub use encoding::Encoding;
 pub use str::Str;
+#[cfg(feature = "alloc")]
 pub use string::String;

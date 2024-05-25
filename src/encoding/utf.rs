@@ -19,7 +19,7 @@ impl Encoding for Utf8 {
     }
 
     fn validate(bytes: &[u8]) -> Result<(), ValidateError> {
-        std::str::from_utf8(bytes)
+        core::str::from_utf8(bytes)
             .map(|_| ())
             .map_err(|e| ValidateError {
                 valid_up_to: e.valid_up_to(),
