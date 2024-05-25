@@ -66,20 +66,35 @@ pub struct Str<E>(PhantomData<E>, [u8]);
 impl<E: Encoding> Str<E> {
     /// Create a `Str` from a byte slice without checking whether it is valid for the current
     /// encoding.
+    ///
+    /// # Safety
+    ///
+    /// The bytes passed must be valid for the current encoding.
     pub unsafe fn from_bytes_unchecked(bytes: &[u8]) -> &Str<E> {
-        unsafe { &*(ptr::from_ref(bytes) as *const Str<E>) }
+        let ptr = ptr::from_ref(bytes) as *const Str<E>;
+        // SAFETY: `Str` is `repr(transparent)` containing a [u8].
+        //         Provided bytes have precondition of being valid encoding
+        unsafe { &*ptr }
     }
 
     /// Create a `Str` from a mutable byte slice without checking whether it is valid for the
     /// current encoding.
+    ///
+    /// # Safety
+    ///
+    /// The bytes passed must be valid for the current encoding.
     pub unsafe fn from_bytes_unchecked_mut(bytes: &mut [u8]) -> &mut Str<E> {
-        unsafe { &mut *(ptr::from_mut(bytes) as *mut Str<E>) }
+        let ptr = ptr::from_mut(bytes) as *mut Str<E>;
+        // SAFETY: `Str` is `repr(transparent)` containing a [u8].
+        //         Provided bytes have precondition of being valid encoding
+        unsafe { &mut *ptr }
     }
 
     /// Create a `Str` from a byte slice, validating the encoding and returning a [`ValidateError`]
     /// if it is not a valid string in the current encoding.
     pub fn from_bytes(bytes: &[u8]) -> Result<&Str<E>, ValidateError> {
         E::validate(bytes)?;
+        // SAFETY: Bytes have been validated, they are guaranteed valid for the encoding
         Ok(unsafe { Self::from_bytes_unchecked(bytes) })
     }
 
@@ -87,6 +102,7 @@ impl<E: Encoding> Str<E> {
     /// [`ValidateError`] if it is not a valid string in the current encoding.
     pub fn from_bytes_mut(bytes: &mut [u8]) -> Result<&mut Str<E>, ValidateError> {
         E::validate(bytes)?;
+        // SAFETY: Bytes have been validated, they are guaranteed valid for the encoding
         Ok(unsafe { Self::from_bytes_unchecked_mut(bytes) })
     }
 
@@ -138,6 +154,8 @@ impl<E: Encoding> Str<E> {
         R: RangeBounds<usize> + SliceIndex<[u8], Output = [u8]>,
     {
         self.check_bounds(&idx)?;
+        // SAFETY: The provided range has been validated as landing on character boundaries.
+        //         Our internal bytes are guaranteed valid for the encoding.
         Some(unsafe { Str::from_bytes_unchecked(self.as_bytes().get(idx)?) })
     }
 
@@ -148,6 +166,8 @@ impl<E: Encoding> Str<E> {
         R: RangeBounds<usize> + SliceIndex<[u8], Output = [u8]>,
     {
         self.check_bounds(&idx)?;
+        // SAFETY: The provided range has been validated as landing on character boundaries.
+        //         Our internal bytes are guaranteed valid for the encoding.
         Some(unsafe { Str::from_bytes_unchecked_mut(self.1.get_mut(idx)?) })
     }
 
@@ -197,7 +217,9 @@ impl<E: Encoding> Str<E> {
             match E2::recode(ptr, &mut out[total_len..]) {
                 Ok(len) => {
                     out.truncate(total_len + len);
-                    return Ok(unsafe { String::from_bytes_unchecked(out) });
+                    // SAFETY: Value written into `out` by `recode` is guaranteed valid in encoding
+                    //         E2.
+                    return Ok(unsafe { String::<E2>::from_bytes_unchecked(out) });
                 }
                 Err(e) => match e.cause() {
                     RecodeCause::NeedSpace { .. } => {
@@ -228,6 +250,8 @@ impl<E: Encoding> Str<E> {
             match E2::recode(ptr, &mut out[total_len..]) {
                 Ok(len) => {
                     out.truncate(total_len + len);
+                    // SAFETY: Value written into `out` by `recode` is guaranteed valid in encoding
+                    //         E2.
                     return unsafe { String::from_bytes_unchecked(out) };
                 }
                 Err(e) => match e.cause() {
@@ -252,7 +276,12 @@ impl<E: Encoding> Str<E> {
 
 impl Str<Utf8> {
     /// Equivalent to [`Str::from_bytes_unchecked`] but for UTF-8 specifically
+    ///
+    /// # Safety
+    ///
+    /// The bytes passed must be valid UTF-8.
     pub unsafe fn from_utf8_unchecked(str: &[u8]) -> &Self {
+        // SAFETY: Precondition that input is valid UTF-8
         Self::from_bytes_unchecked(str)
     }
 
@@ -263,18 +292,25 @@ impl Str<Utf8> {
 
     /// Convert a [`str`] directly into a [`Str<Utf8>`].
     pub fn from_std(value: &str) -> &Str<Utf8> {
+        // SAFETY: `&str` is UTF-8 by its validity guarantees.
         unsafe { Self::from_bytes_unchecked(value.as_bytes()) }
     }
 
     /// Convert a [`Str<Utf8>`] directly into a [`str`]
     pub fn as_std(&self) -> &str {
+        // SAFETY: `&Str` is UTF-8 by our validity guarantees.
         unsafe { std::str::from_utf8_unchecked(&self.1) }
     }
 }
 
 impl Str<Utf16> {
     /// Equivalent to [`Str::from_bytes_unchecked`] but for UTF-16 specifically
+    ///
+    /// # Safety
+    ///
+    /// The bytes passed must be valid UTF-16.
     pub unsafe fn from_utf16_unchecked(str: &[u16]) -> &Self {
+        // SAFETY: Precondition that input is valid UTF-16
         Self::from_bytes_unchecked(cast_slice(str))
     }
 
@@ -286,7 +322,12 @@ impl Str<Utf16> {
 
 impl Str<Utf32> {
     /// Equivalent to [`Str::from_bytes_unchecked`] but for UTF-32 specifically
+    ///
+    /// # Safety
+    ///
+    /// The bytes passed must be valid UTF-32.
     pub unsafe fn from_utf32_unchecked(str: &[u32]) -> &Self {
+        // SAFETY: Precondition that input is valid UTF-32
         Self::from_bytes_unchecked(cast_slice(str))
     }
 
@@ -297,6 +338,7 @@ impl Str<Utf32> {
 
     /// Convert a [`&[char]`] directly into a [`Str<Utf32>`]
     pub fn from_chars(str: &[char]) -> &Self {
+        // SAFETY: Utf32 encoding is exactly equivalent to `char` encoding.
         unsafe { Self::from_bytes_unchecked(cast_slice(str)) }
     }
 
@@ -308,6 +350,8 @@ impl Str<Utf32> {
         if (ptr.cast::<()>() as usize) % mem::align_of::<char>() != 0 {
             None
         } else {
+            // SAFETY: We have guaranteed correct alignment, and Utf32 encoding is exactly
+            //         equivalent to `char` encoding.
             Some(unsafe { slice::from_raw_parts(ptr.cast(), len / 4) })
         }
     }
@@ -334,6 +378,7 @@ impl<E: Encoding> fmt::Display for Str<E> {
 
 impl<E: Encoding> Default for &Str<E> {
     fn default() -> Self {
+        // SAFETY: Empty string slice can never be invalid
         unsafe { Str::from_bytes_unchecked(&[]) }
     }
 }
@@ -343,6 +388,7 @@ impl<E: Encoding> ToOwned for Str<E> {
 
     fn to_owned(&self) -> Self::Owned {
         let bytes = self.as_bytes().to_vec();
+        // SAFETY: Our internal bytes are guaranteed valid for our encoding
         unsafe { String::from_bytes_unchecked(bytes) }
     }
 }

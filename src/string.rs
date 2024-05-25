@@ -42,6 +42,10 @@ impl<E: Encoding> String<E> {
     }
 
     /// Create a `String` from bytes without checking whether it is valid for the current encoding.
+    ///
+    /// # Safety
+    ///
+    /// The bytes passed must be valid for the current encoding.
     pub unsafe fn from_bytes_unchecked(bytes: Vec<u8>) -> String<E> {
         String(PhantomData, bytes)
     }
@@ -50,6 +54,7 @@ impl<E: Encoding> String<E> {
     /// it is not a valid string in the current encoding.
     pub fn from_bytes(bytes: Vec<u8>) -> Result<String<E>, ValidateError> {
         E::validate(&bytes)?;
+        // SAFETY: Bytes have been validated, they are guaranteed valid for the encoding
         Ok(unsafe { String::from_bytes_unchecked(bytes) })
     }
 
@@ -117,11 +122,13 @@ impl<E: Encoding> String<E> {
 impl String<Utf8> {
     /// Convert an [`std::String`](std::string::String) directly into a [`String<Utf8>`]
     pub fn from_std(value: StdString) -> Self {
+        // SAFETY: `StdString` is UTF-8 by its validity guarantees.
         unsafe { String::from_bytes_unchecked(value.into_bytes()) }
     }
 
     /// Convert a [`String<Utf8>`] directly into a [`std::String`](std::string::String)
     pub fn into_std(self) -> StdString {
+        // SAFETY: `String<Utf8>` is UTF-8 by its validity guarantees.
         unsafe { StdString::from_utf8_unchecked(self.into_bytes()) }
     }
 }
@@ -156,12 +163,14 @@ impl<E: Encoding> Deref for String<E> {
     type Target = Str<E>;
 
     fn deref(&self) -> &Self::Target {
+        // SAFETY: Our internal bytes are guaranteed valid for the encoding
         unsafe { Str::from_bytes_unchecked(&self.1) }
     }
 }
 
 impl<E: Encoding> DerefMut for String<E> {
     fn deref_mut(&mut self) -> &mut Self::Target {
+        // SAFETY: Our internal bytes are guaranteed valid for the encoding
         unsafe { Str::from_bytes_unchecked_mut(&mut self.1) }
     }
 }

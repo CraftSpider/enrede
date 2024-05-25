@@ -122,6 +122,8 @@ impl Encoding for Utf16BE {
         let bytes = str.as_bytes();
         let high = u16::from_be_bytes([bytes[0], bytes[1]]);
         if (..0xD800).contains(&high) || (0xE000..).contains(&high) {
+            // SAFETY: We just confirmed `high` is not in the surrogate range, and is thus a valid
+            //         `char`.
             let c = unsafe { char::from_u32_unchecked(high as u32) };
             (c, &str[2..])
         } else {
@@ -129,6 +131,7 @@ impl Encoding for Utf16BE {
 
             let high = (high as u32 - 0xD800) * 0x400;
             let low = low as u32 - 0xDC00;
+            // SAFETY: Str is valid UTF-16, as such, all surrogate pairs will produce a valid `char`
             let c = unsafe { char::from_u32_unchecked(high + low + 0x10000) };
             (c, &str[4..])
         }
@@ -212,6 +215,8 @@ impl Encoding for Utf16LE {
         let bytes = str.as_bytes();
         let high = u16::from_le_bytes([bytes[0], bytes[1]]);
         if (..0xD800).contains(&high) || (0xE000..).contains(&high) {
+            // SAFETY: We just confirmed `high` is not in the surrogate range, and is thus a valid
+            //         `char`.
             let c = unsafe { char::from_u32_unchecked(high as u32) };
             (c, &str[2..])
         } else {
@@ -219,6 +224,7 @@ impl Encoding for Utf16LE {
 
             let high = (high as u32 - 0xD800) * 0x400;
             let low = low as u32 - 0xDC00;
+            // SAFETY: Str is valid UTF-16, as such, all surrogate pairs will produce a valid `char`
             let c = unsafe { char::from_u32_unchecked(high + low + 0x10000) };
             (c, &str[4..])
         }
@@ -256,7 +262,7 @@ impl Encoding for Utf32 {
                 });
             }
 
-            let c = u32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
+            let c = u32::from_ne_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
             if (0xD800..0xE000).contains(&c) || (0x110000..).contains(&c) {
                 return Err(ValidateError {
                     valid_up_to: idx * 4,
@@ -275,6 +281,7 @@ impl Encoding for Utf32 {
     fn decode_char(str: &Str<Self>) -> (char, &Str<Self>) {
         let bytes = str.as_bytes();
         let c = u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
+        // SAFETY: Str<Utf32> is guaranteed to contain valid `char` values
         let c = unsafe { char::from_u32_unchecked(c) };
         (c, &str[4..])
     }

@@ -52,6 +52,7 @@ impl<'a, E: Encoding + 'a> Iterator for EncodedChunks<'a, E> {
             }
             Err(err) => {
                 let valid_to = err.valid_up_to();
+                // SAFETY: Data up to `valid_to` is guaranteed valid for the provided encoding
                 let valid = unsafe { Str::from_bytes_unchecked(&self.src[..valid_to]) };
                 let invalid = match err.error_len() {
                     Some(len) => {
