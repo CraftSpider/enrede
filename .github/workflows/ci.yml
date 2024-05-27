@@ -6,6 +6,24 @@ on:
   schedule: [cron: "0 1 * * *"]
 
 jobs:
+  check-none:
+    name: cargo check none
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - run: cargo check --no-default-features
+  check-alloc:
+    name: cargo check alloc
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - run: cargo check --no-default-features --features alloc
   test:
     name: cargo test
     runs-on: ubuntu-latest
@@ -45,4 +63,4 @@ jobs:
         uses: dtolnay/rust-toolchain@nightly
         with:
           components: miri
-      - run: cargo miri test
+      - run: cargo miri test --all-features

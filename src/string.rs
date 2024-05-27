@@ -7,10 +7,11 @@ use alloc::vec::Vec;
 use core::fmt;
 use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut};
+use core::hash::{Hash, Hasher};
 
+use crate::cstring::{CString, NulError};
 use crate::encoding::{ArrayLike, Encoding, NullTerminable, Utf8, ValidateError};
 use crate::str::Str;
-use crate::cstring::{CString, NewError};
 
 mod chunks;
 
@@ -122,8 +123,13 @@ impl<E: Encoding> String<E> {
 }
 
 impl<E: Encoding + NullTerminable> String<E> {
-    pub fn into_cstring(self) -> Result<CString<E>, NewError> {
-        CString::new(self.1)
+    /// Attempt to convert this `String` into a [`CString`]. This method fails if the string
+    /// contains any internal null bytes.
+    ///
+    /// This method may be more efficient than `CString::new(string.into_bytes())`, due to
+    /// being able to skip encoding validity checks.
+    pub fn into_cstring(self) -> Result<CString<E>, NulError> {
+        self.try_into()
     }
 }
 
@@ -166,6 +172,12 @@ impl<E: Encoding> PartialEq for String<E> {
 }
 
 impl<E: Encoding> Eq for String<E> {}
+
+impl<E: Encoding> Hash for String<E> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.1.hash(state)
+    }
+}
 
 impl<E: Encoding> Deref for String<E> {
     type Target = Str<E>;
@@ -233,6 +245,14 @@ impl From<StdString> for String<Utf8> {
 impl From<String<Utf8>> for StdString {
     fn from(value: String<Utf8>) -> Self {
         value.into_std()
+    }
+}
+
+impl<E: NullTerminable> From<CString<E>> for String<E> {
+    fn from(value: CString<E>) -> Self {
+        // SAFETY: A `CString` is guaranteed to contain a valid `String`, but with a terminating
+        //         null. `into_bytes` removes the null, so just leaves the valid string.
+        unsafe { String::from_bytes_unchecked(value.into_bytes()) }
     }
 }
 

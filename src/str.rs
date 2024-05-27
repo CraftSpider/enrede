@@ -13,6 +13,7 @@ use core::marker::PhantomData;
 use core::ops::{Bound, Index, RangeBounds};
 use core::slice::SliceIndex;
 use core::{fmt, mem, ptr, slice};
+use core::hash::{Hash, Hasher};
 
 #[cfg(feature = "alloc")]
 use crate::encoding::RecodeCause;
@@ -342,11 +343,11 @@ impl Str<Utf32> {
 
 impl<E: Encoding> fmt::Debug for Str<E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}\"", E::shorthand())?;
+        write!(f, "\"")?;
         for c in self.chars() {
             f.write_char(c)?;
         }
-        write!(f, "\"")
+        write!(f, "\"{}", E::shorthand())
     }
 }
 
@@ -397,6 +398,12 @@ impl<E: Encoding> PartialEq for Str<E> {
 }
 
 impl<E: Encoding> Eq for Str<E> {}
+
+impl<E: Encoding> Hash for Str<E> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.1.hash(state)
+    }
+}
 
 impl<E: Encoding> AsRef<[u8]> for Str<E> {
     fn as_ref(&self) -> &[u8] {
