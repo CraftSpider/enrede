@@ -56,6 +56,11 @@ impl NulError {
 pub struct CString<E>(PhantomData<E>, Vec<u8>);
 
 impl<E: Encoding + NullTerminable> CString<E> {
+    pub unsafe fn from_vec_unchecked(mut bytes: Vec<u8>) -> CString<E> {
+        bytes.push(0);
+        CString(PhantomData, bytes)
+    }
+
     pub fn new<T>(bytes: T) -> Result<CString<E>, CStringError>
     where
         T: Into<Vec<u8>>,
@@ -68,19 +73,14 @@ impl<E: Encoding + NullTerminable> CString<E> {
                 cause: CStringErrorCause::HasNull { idx },
             });
         }
+        // Can't use map_err due to moving `bytes`, sad :(
         if let Err(e) = E::validate(&bytes) {
             return Err(CStringError {
                 bytes,
                 cause: CStringErrorCause::Invalid(e),
             });
         }
-        bytes.push(0);
-        Ok(CString(PhantomData, bytes))
-    }
-
-    pub unsafe fn from_vec_unchecked(mut bytes: Vec<u8>) -> CString<E> {
-        bytes.push(0);
-        CString(PhantomData, bytes)
+        Ok(unsafe { Self::from_vec_unchecked(bytes) })
     }
 
     pub fn into_string(self) -> String<E> {
