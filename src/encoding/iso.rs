@@ -1,5 +1,5 @@
 use crate::encoding::sealed::Sealed;
-use crate::encoding::ValidateError;
+use crate::encoding::{NullTerminable, ValidateError};
 use crate::{Encoding, Str};
 
 const DECODE_MAP_8859_2: [char; 96] = [
@@ -79,6 +79,8 @@ impl Encoding for Iso8859_2 {
     }
 }
 
+impl NullTerminable for Iso8859_2 {}
+
 /// The [ISO/IEC 8859-15](https://en.wikipedia.org/wiki/ISO/IEC_8859-15) encoding.
 #[non_exhaustive]
 pub struct Iso8859_15;
@@ -137,3 +139,5 @@ impl Encoding for Iso8859_15 {
         }
     }
 }
+
+impl NullTerminable for Iso8859_15 {}

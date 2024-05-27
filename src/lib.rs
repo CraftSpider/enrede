@@ -29,17 +29,25 @@
 //!   - ISO/IEC 8859-1
 
 #![warn(elided_lifetimes_in_paths, missing_docs, clippy::cargo)]
-
-#![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(not(any(feature = "std", test)), no_std)]
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
+extern crate core;
 
+pub mod cstr;
+#[cfg(feature = "alloc")]
+pub mod cstring;
 pub mod encoding;
+pub(crate) mod err;
 pub mod str;
 #[cfg(feature = "alloc")]
 pub mod string;
+pub(crate) mod utils;
 
+pub use cstr::CStr;
+#[cfg(feature = "alloc")]
+pub use cstring::CString;
 pub use encoding::Encoding;
 pub use str::Str;
 #[cfg(feature = "alloc")]

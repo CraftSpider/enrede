@@ -1,5 +1,5 @@
 use crate::encoding::sealed::Sealed;
-use crate::encoding::ValidateError;
+use crate::encoding::{NullTerminable, ValidateError};
 use crate::{Encoding, Str};
 
 /// The [ASCII](https://en.wikipedia.org/wiki/ASCII) encoding.
@@ -55,6 +55,8 @@ impl Encoding for Ascii {
     }
 }
 
+impl NullTerminable for Ascii {}
+
 /// The [Extended ASCII](https://en.wikipedia.org/wiki/ASCII#8-bit_codes) encoding. This encoding is
 /// not assign any particular meaning to values beyond 127 - it simply round-trips them as `char`s
 /// of that exact codepoint value.
@@ -100,6 +102,8 @@ impl Encoding for ExtendedAscii {
         }
     }
 }
+
+impl NullTerminable for ExtendedAscii {}
 
 #[cfg(test)]
 mod tests {

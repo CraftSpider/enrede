@@ -5,9 +5,9 @@
 //! want more low-level encoding operations, you can perform them directly through methods such
 //! as [`Encoding::encode`].
 
-use core::slice;
-use arrayvec::ArrayVec;
 use crate::str::Str;
+use arrayvec::ArrayVec;
+use core::slice;
 
 mod ascii;
 mod iso;
@@ -113,6 +113,16 @@ pub trait Encoding: Sealed {
     #[doc(hidden)]
     fn char_len(c: char) -> usize;
 }
+
+/// An encoding that can be used in a C-string, meaning it may encode valid data with no internal
+/// null bytes.
+///
+/// ## Requirements
+///
+/// - The encoding doesn't require null bytes to encode non-null text. This excludes formats
+///   such as UTF-16, which needs internal null bytes to encode ASCII value.
+/// - The format either doesn't map the null byte to a character, or maps it to the null character.
+pub trait NullTerminable: Encoding {}
 
 /// An error encountered while validating a byte stream for a certain encoding.
 #[derive(Clone, Debug, PartialEq)]

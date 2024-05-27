@@ -1,10 +1,10 @@
 //! Implementation and utilities for a generically encoded [`std::String`](std::string::String)
 //! equivalent type.
 
-use core::fmt;
 use alloc::borrow::{Borrow, BorrowMut, Cow, ToOwned};
 use alloc::string::String as StdString;
 use alloc::vec::Vec;
+use core::fmt;
 use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut};
 

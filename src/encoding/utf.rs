@@ -1,5 +1,5 @@
 use crate::encoding::sealed::Sealed;
-use crate::encoding::{Encoding, ValidateError};
+use crate::encoding::{Encoding, NullTerminable, ValidateError};
 use crate::str::Str;
 use arrayvec::ArrayVec;
 
@@ -49,6 +49,8 @@ impl Encoding for Utf8 {
     }
 }
 
+impl NullTerminable for Utf8 {}
+
 /// The [UTF-16](https://en.wikipedia.org/wiki/UTF-16) encoding
 pub type Utf16 = Utf16LE;
 
@@ -95,12 +97,12 @@ macro_rules! utf16_impl {
                     } else if surrogate && (0xDC00..0xE000).contains(&c) {
                         surrogate = false;
                     } else if surrogate || !((..0xD800).contains(&c) || (0xE000..).contains(&c)) {
-                        let err_len = if surrogate && !((..0xD800).contains(&c) || (0xE000..).contains(&c))
-                        {
-                            4
-                        } else {
-                            2
-                        };
+                        let err_len =
+                            if surrogate && !((..0xD800).contains(&c) || (0xE000..).contains(&c)) {
+                                4
+                            } else {
+                                2
+                            };
                         let idx = if surrogate { idx - 1 } else { idx };
                         return Err(ValidateError {
                             valid_up_to: idx * 2,
@@ -387,10 +389,7 @@ mod tests {
     #[test]
     fn test_encode_utf32() {
         assert_eq!(Utf32::encode_char('A'), Some([b'A', 0, 0, 0]));
-        assert_eq!(
-            Utf32::encode_char('𐐷'),
-            Some([0x37, 0x04, 0x01, 0x00])
-        );
+        assert_eq!(Utf32::encode_char('𐐷'), Some([0x37, 0x04, 0x01, 0x00]));
     }
 
     #[test]

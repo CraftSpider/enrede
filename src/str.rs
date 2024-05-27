@@ -2,56 +2,29 @@
 //!
 //! See also the [`Str<E>`] type.
 
+#[cfg(feature = "alloc")]
+use alloc::borrow::ToOwned;
+#[cfg(feature = "alloc")]
+use alloc::vec;
 use bytemuck::must_cast_slice as cast_slice;
 use core::cmp::Ordering;
 use core::fmt::Write;
 use core::marker::PhantomData;
-use core::ops::{Index, Bound, RangeBounds};
+use core::ops::{Bound, Index, RangeBounds};
 use core::slice::SliceIndex;
 use core::{fmt, mem, ptr, slice};
-#[cfg(feature = "alloc")]
-use alloc::vec;
-#[cfg(feature = "alloc")]
-use alloc::borrow::ToOwned;
 
-use crate::encoding::{Encoding, Utf16, Utf32, Utf8, ValidateError};
 #[cfg(feature = "alloc")]
 use crate::encoding::RecodeCause;
+use crate::encoding::{Encoding, Utf16, Utf32, Utf8, ValidateError};
+#[cfg(feature = "alloc")]
+pub use crate::err::RecodeError;
 #[cfg(feature = "alloc")]
 use crate::string::String;
 
 mod iter;
 
 pub use iter::{CharIndices, Chars};
-
-/// Error encountered while re-encoding a [`Str`] into another format
-#[derive(Clone, Debug, PartialEq)]
-pub struct RecodeError {
-    valid_up_to: usize,
-    char: char,
-    char_len: u8,
-}
-
-impl RecodeError {
-    /// The length of valid data in the input before the error was encountered. Calling
-    /// [`recode`](Str::recode) again on the input sliced down to this length will succeed.
-    pub fn valid_up_to(&self) -> usize {
-        self.valid_up_to
-    }
-
-    /// The character encountered that caused re-encoding to fail. This character most likely isn't
-    /// supported by the new encoding.
-    pub fn char(&self) -> char {
-        self.char
-    }
-
-    /// The length of the character in the input encoding. Skipping this many bytes forwards from
-    /// [`valid_up_to`](Self::valid_up_to) and trying again will avoid this particular error
-    /// character (though recoding may fail again immediately due to another invalid character).
-    pub fn char_len(&self) -> usize {
-        self.char_len as usize
-    }
-}
 
 /// Implementation of a generically encoded [`str`] type. This type is similar to the standard
 /// library [`str`] type in many ways, but instead of having a fixed UTF-8 encoding scheme, it uses
@@ -77,6 +50,7 @@ impl<E: Encoding> Str<E> {
     ///
     /// The bytes passed must be valid for the current encoding.
     pub unsafe fn from_bytes_unchecked(bytes: &[u8]) -> &Str<E> {
+        debug_assert!(E::validate(bytes).is_ok());
         let ptr = ptr::from_ref(bytes) as *const Str<E>;
         // SAFETY: `Str` is `repr(transparent)` containing a [u8].
         //         Provided bytes have precondition of being valid encoding
@@ -90,6 +64,7 @@ impl<E: Encoding> Str<E> {
     ///
     /// The bytes passed must be valid for the current encoding.
     pub unsafe fn from_bytes_unchecked_mut(bytes: &mut [u8]) -> &mut Str<E> {
+        debug_assert!(E::validate(bytes).is_ok());
         let ptr = ptr::from_mut(bytes) as *mut Str<E>;
         // SAFETY: `Str` is `repr(transparent)` containing a [u8].
         //         Provided bytes have precondition of being valid encoding
@@ -445,9 +420,8 @@ impl<'a> From<&'a [char]> for &'a Str<Utf32> {
 
 #[cfg(test)]
 mod tests {
-    #[cfg(not(feature = "alloc"))]
-    compile_error!("Tests require `alloc` feature");
     use super::*;
+    #[cfg(feature = "alloc")]
     use crate::encoding::{Ascii, Win1252};
 
     #[test]
@@ -499,6 +473,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "alloc")]
     #[test]
     fn test_recode_small_to_large() {
         let a = Str::from_std("Hello World!");
@@ -518,6 +493,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "alloc")]
     #[test]
     fn test_recode_invalid_chars() {
         let a = Str::from_std("A𐐷b");
@@ -545,6 +521,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "alloc")]
     #[test]
     fn test_recode_lossy_invalid_chars() {
         let a = Str::from_std("A𐐷b");

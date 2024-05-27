@@ -1,5 +1,5 @@
 use crate::encoding::sealed::Sealed;
-use crate::encoding::{Encoding, ValidateError};
+use crate::encoding::{Encoding, NullTerminable, ValidateError};
 use crate::str::Str;
 
 const DECODE_MAP_1251: [char; 128] = [
@@ -77,6 +77,8 @@ impl Encoding for Win1251 {
     }
 }
 
+impl NullTerminable for Win1251 {}
+
 /// The [Windows-1252](https://en.wikipedia.org/wiki/Windows-1252) encoding.
 #[non_exhaustive]
 pub struct Win1252;
@@ -137,6 +139,8 @@ impl Encoding for Win1252 {
     }
 }
 
+impl NullTerminable for Win1252 {}
+
 /// The [Windows-1252](https://en.wikipedia.org/wiki/Windows-1252) encoding, with empty spots
 /// replaced by the corresponding C1 control codes.
 #[non_exhaustive]
@@ -189,6 +193,8 @@ impl Encoding for Win1252Loose {
     }
 }
 
+impl NullTerminable for Win1252Loose {}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -210,10 +216,7 @@ mod tests {
         assert_eq!(Win1251::encode_char('A'), Some(b'A'));
         assert_eq!(Win1251::encode_char('Ђ'), Some(0x80));
         assert_eq!(Win1251::encode_char('я'), Some(0xFF));
-        assert_eq!(
-            Win1251::encode_char('𐐷'),
-            None,
-        );
+        assert_eq!(Win1251::encode_char('𐐷'), None,);
     }
 
     #[test]
@@ -247,10 +250,7 @@ mod tests {
         assert_eq!(Win1252::encode_char('A'), Some(b'A'));
         assert_eq!(Win1252::encode_char('€'), Some(0x80));
         assert_eq!(Win1252::encode_char('ÿ'), Some(0xFF));
-        assert_eq!(
-            Win1252::encode_char('𐐷'),
-            None,
-        );
+        assert_eq!(Win1252::encode_char('𐐷'), None,);
     }
 
     #[test]
