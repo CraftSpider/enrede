@@ -398,6 +398,12 @@ impl<E: Encoding> PartialEq for Str<E> {
 
 impl<E: Encoding> Eq for Str<E> {}
 
+impl<E: Encoding> AsRef<[u8]> for Str<E> {
+    fn as_ref(&self) -> &[u8] {
+        self.as_bytes()
+    }
+}
+
 // Encoding-specific implementations
 
 impl<'a> From<&'a Str<Utf8>> for &'a str {

@@ -33,7 +33,6 @@
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
-extern crate core;
 
 pub mod cstr;
 #[cfg(feature = "alloc")]

@@ -1,9 +1,9 @@
 #[cfg(feature = "alloc")]
 use alloc::borrow::ToOwned;
-use core::cmp::Ordering;
+use core::borrow::Borrow;
 use core::ffi::c_char;
 use core::marker::PhantomData;
-use core::ops::{Bound, Index};
+use core::ops::{Bound, Deref, Index};
 use core::ptr;
 use core::slice::SliceIndex;
 
@@ -13,11 +13,13 @@ use crate::encoding::{Encoding, NullTerminable, ValidateError};
 use crate::str::Str;
 use crate::utils::RangeOpen;
 
+#[derive(Debug, PartialEq)]
 pub enum FromBytesTilNulError {
     Invalid(ValidateError),
     MissingNull,
 }
 
+#[derive(Debug, PartialEq)]
 pub enum FromBytesWithNulError {
     Invalid(ValidateError),
     HasNull { idx: usize },
@@ -80,11 +82,6 @@ impl<E: Encoding + NullTerminable> CStr<E> {
         ptr::from_ref(&self.1).cast()
     }
 
-    /// Get the underlying bytes for this string, minus the terminating null byte.
-    pub fn as_bytes(&self) -> &[u8] {
-        &self.1[..self.1.len() - 1]
-    }
-
     /// Get the underlying bytes for this string, including the terminating null byte.
     pub fn as_bytes_with_nul(&self) -> &[u8] {
         &self.1
@@ -126,14 +123,6 @@ impl<E: Encoding + NullTerminable> CStr<E> {
         Some(unsafe { CStr::from_bytes_with_nul_unchecked_mut(self.1.get_mut(idx)?) })
     }
 
-    pub fn is_char_boundary(&self, idx: usize) -> bool {
-        match idx.cmp(&self.as_bytes().len()) {
-            Ordering::Equal => true,
-            Ordering::Greater => false,
-            Ordering::Less => E::char_bound(self.as_str(), idx),
-        }
-    }
-
     /// Convert this `CStr` into a [`Str`]. Unlike the equivalent std method, this is infallible,
     /// because our `CStr` is encoding-specific instead of arbitrary null-terminated bytes.
     pub fn as_str(&self) -> &Str<E> {
@@ -144,6 +133,12 @@ impl<E: Encoding + NullTerminable> CStr<E> {
 impl<E: NullTerminable> Default for &CStr<E> {
     fn default() -> Self {
         unsafe { CStr::from_bytes_with_nul_unchecked(&[0]) }
+    }
+}
+
+impl<E: NullTerminable> PartialEq for CStr<E> {
+    fn eq(&self, other: &Self) -> bool {
+        self.1 == other.1
     }
 }
 
@@ -166,5 +161,48 @@ where
     fn index(&self, index: R) -> &Self::Output {
         self.get(index)
             .expect("Attempted to slice C-string at non-character boundary")
+    }
+}
+
+impl<E: NullTerminable> Deref for CStr<E> {
+    type Target = Str<E>;
+
+    fn deref(&self) -> &Self::Target {
+        self.as_str()
+    }
+}
+
+impl<E: NullTerminable> AsRef<Str<E>> for CStr<E> {
+    fn as_ref(&self) -> &Str<E> {
+        self
+    }
+}
+
+impl<E: NullTerminable> Borrow<Str<E>> for CStr<E> {
+    fn borrow(&self) -> &Str<E> {
+        self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::encoding::{Ascii, Utf8};
+
+    #[test]
+    fn test_from_bytes_with_nul() {
+        assert!(CStr::<Ascii>::from_bytes_with_nul(b"Hello World!\0").is_ok());
+        assert_eq!(
+            CStr::<Ascii>::from_bytes_with_nul(b"Hello World!"),
+            Err(FromBytesWithNulError::MissingNull)
+        );
+        assert_eq!(
+            CStr::<Ascii>::from_bytes_with_nul(b"Hello\0World!"),
+            Err(FromBytesWithNulError::HasNull { idx: 5 })
+        );
+        assert!(matches!(
+            CStr::<Utf8>::from_bytes_with_nul(b"Hello\xD8World!"),
+            Err(FromBytesWithNulError::Invalid(_))
+        ));
     }
 }

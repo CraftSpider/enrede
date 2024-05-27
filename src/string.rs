@@ -8,8 +8,9 @@ use core::fmt;
 use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut};
 
-use crate::encoding::{ArrayLike, Encoding, Utf8, ValidateError};
+use crate::encoding::{ArrayLike, Encoding, NullTerminable, Utf8, ValidateError};
 use crate::str::Str;
+use crate::cstring::{CString, NewError};
 
 mod chunks;
 
@@ -117,6 +118,12 @@ impl<E: Encoding> String<E> {
     /// Extend this `String` with the contents of the provided [`Str`].
     pub fn push_str(&mut self, str: &Str<E>) {
         self.1.extend(str.as_bytes());
+    }
+}
+
+impl<E: Encoding + NullTerminable> String<E> {
+    pub fn into_cstring(self) -> Result<CString<E>, NewError> {
+        CString::new(self.1)
     }
 }
 
