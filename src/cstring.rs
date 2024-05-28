@@ -222,10 +222,10 @@ impl<E: NullTerminable> TryFrom<String<E>> for CString<E> {
     }
 }
 
-impl<E: NullTerminable> TryFrom<std::ffi::CString> for CString<E> {
+impl<E: NullTerminable> TryFrom<alloc::ffi::CString> for CString<E> {
     type Error = ValidateError;
 
-    fn try_from(value: std::ffi::CString) -> Result<Self, Self::Error> {
+    fn try_from(value: alloc::ffi::CString) -> Result<Self, Self::Error> {
         let bytes = value.into_bytes();
         E::validate(&bytes)?;
         // SAFETY: An std CString is guaranteed to contain no internal null bytes
