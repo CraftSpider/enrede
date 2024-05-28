@@ -9,11 +9,11 @@ use alloc::vec;
 use bytemuck::must_cast_slice as cast_slice;
 use core::cmp::Ordering;
 use core::fmt::Write;
+use core::hash::{Hash, Hasher};
 use core::marker::PhantomData;
 use core::ops::{Bound, Index, RangeBounds};
 use core::slice::SliceIndex;
 use core::{fmt, mem, ptr, slice};
-use core::hash::{Hash, Hasher};
 
 #[cfg(feature = "alloc")]
 use crate::encoding::RecodeCause;

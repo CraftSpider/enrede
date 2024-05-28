@@ -5,9 +5,9 @@ use alloc::borrow::{Borrow, BorrowMut, Cow, ToOwned};
 use alloc::string::String as StdString;
 use alloc::vec::Vec;
 use core::fmt;
+use core::hash::{Hash, Hasher};
 use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut};
-use core::hash::{Hash, Hasher};
 
 use crate::cstring::{CString, NulError};
 use crate::encoding::{ArrayLike, Encoding, NullTerminable, Utf8, ValidateError};

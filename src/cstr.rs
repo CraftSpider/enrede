@@ -6,11 +6,11 @@
 use alloc::borrow::ToOwned;
 use core::borrow::Borrow;
 use core::ffi::c_char;
+use core::hash::{Hash, Hasher};
 use core::marker::PhantomData;
 use core::ops::{Bound, Deref, Index};
 use core::slice::SliceIndex;
 use core::{fmt, ptr};
-use core::hash::{Hash, Hasher};
 
 #[cfg(feature = "alloc")]
 use crate::cstring::CString;
@@ -35,7 +35,7 @@ pub enum FromBytesWithNulError {
     /// The input contains a null byte not in the final position
     HasNull {
         /// The index of the located null byte
-        idx: usize
+        idx: usize,
     },
     /// The input doesn't contain any null bytes
     MissingNull,
