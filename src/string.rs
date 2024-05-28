@@ -228,6 +228,14 @@ impl<E: Encoding> FromIterator<char> for String<E> {
     }
 }
 
+impl<E: NullTerminable> From<CString<E>> for String<E> {
+    fn from(value: CString<E>) -> Self {
+        // SAFETY: A `CString` is guaranteed to contain a valid `String`, but with a terminating
+        //         null. `into_bytes` removes the null, so just leaves the valid string.
+        unsafe { String::from_bytes_unchecked(value.into_bytes()) }
+    }
+}
+
 // Encoding-specific implementations
 
 impl From<&str> for String<Utf8> {
@@ -245,14 +253,6 @@ impl From<StdString> for String<Utf8> {
 impl From<String<Utf8>> for StdString {
     fn from(value: String<Utf8>) -> Self {
         value.into_std()
-    }
-}
-
-impl<E: NullTerminable> From<CString<E>> for String<E> {
-    fn from(value: CString<E>) -> Self {
-        // SAFETY: A `CString` is guaranteed to contain a valid `String`, but with a terminating
-        //         null. `into_bytes` removes the null, so just leaves the valid string.
-        unsafe { String::from_bytes_unchecked(value.into_bytes()) }
     }
 }
 

@@ -123,7 +123,7 @@ impl<E: Encoding + NullTerminable> CString<E> {
     /// Convert this `CString` into a [`String`] by removing the trailing null. Unlike the
     /// equivalent `std` method, this is infallible because our `CString` is encoding-specific.
     pub fn into_string(self) -> String<E> {
-        unsafe { String::from_bytes_unchecked(self.into_bytes()) }
+        self.into()
     }
 
     /// Convert this `CString` into bytes, minus the trailing null byte
