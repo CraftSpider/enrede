@@ -1,5 +1,11 @@
 # Changelog
 
+# Unreleased
+
+### Changed
+
+- Updated README.md, replace lib.rs docs with README.md
+
 # [0.1.1] - 2024-05-28
 
 ### Added
