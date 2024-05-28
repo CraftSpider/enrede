@@ -27,7 +27,6 @@ These features are not yet supported, but are planned for a future version:
 - Dynamically encoded strings
 - Extended methods for encodings following certain properties:
   - Constant length encodings
-  - Encodings with no invalid byte sequences
 - More encodings
   - Shift-JIS
   - Big5

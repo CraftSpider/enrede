@@ -248,11 +248,21 @@ impl<E: Encoding + NullTerminable> CStr<E> {
 
     /// Convert this `CStr` into a [`Str`]. Unlike the equivalent std method, this is infallible,
     /// because our `CStr` is encoding-specific instead of arbitrary null-terminated bytes.
+    ///
+    /// Note that this method should rarely be needed, as `CStr` implements `Deref` into [`Str`].
     pub fn as_str(&self) -> &Str<E> {
         // This is the impl of `Deref` - no using `Str` methods.
         let bytes = self.as_bytes_with_nul();
         // SAFETY: Our internal bytes are guaranteed valid for the encoding.
         unsafe { Str::from_bytes_unchecked(&bytes[..bytes.len() - 1]) }
+    }
+
+    pub fn split_at(&self, idx: usize) -> Option<(&Str<E>, &CStr<E>)> {
+        todo!()
+    }
+
+    pub fn split_at_mut(&mut self, idx: usize) -> Option<(&mut Str<E>, &mut CStr<E>)> {
+        todo!()
     }
 }
 

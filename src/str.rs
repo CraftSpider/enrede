@@ -188,6 +188,26 @@ impl<E: Encoding> Str<E> {
         CharIndices::new(self)
     }
 
+    pub fn split_at(&self, idx: usize) -> Option<(&Str<E>, &Str<E>)> {
+        if self.is_char_boundary(idx) && idx < self.len() {
+            let (start, end) = self.1.split_at(idx);
+            Some(unsafe {
+                (
+                    Str::from_bytes_unchecked(start),
+                    Str::from_bytes_unchecked(end),
+                )
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn split_at_mut(&mut self, idx: usize) -> Option<(&mut Str<E>, &mut Str<E>)> {
+        if self.is_char_boundary(idx) && idx < self.len() {
+            let (start, end) = self.1.split_at_mut(idx);
+        }
+    }
+
     /// Get this `Str` in a different [`Encoding`]. This method allocates a new [`String`] with the
     /// desired encoding, and returns an error if the source string contains any characters that
     /// cannot be represented in the destination encoding.
