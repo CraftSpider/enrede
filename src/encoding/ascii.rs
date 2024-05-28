@@ -1,5 +1,5 @@
 use crate::encoding::sealed::Sealed;
-use crate::encoding::{NullTerminable, ValidateError};
+use crate::encoding::{AlwaysValid, NullTerminable, ValidateError};
 use crate::{Encoding, Str};
 
 /// The [ASCII](https://en.wikipedia.org/wiki/ASCII) encoding.
@@ -104,6 +104,8 @@ impl Encoding for ExtendedAscii {
 }
 
 impl NullTerminable for ExtendedAscii {}
+
+impl AlwaysValid for ExtendedAscii {}
 
 #[cfg(test)]
 mod tests {

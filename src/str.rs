@@ -17,7 +17,7 @@ use core::{fmt, mem, ptr, slice};
 
 #[cfg(feature = "alloc")]
 use crate::encoding::RecodeCause;
-use crate::encoding::{Encoding, Utf16, Utf32, Utf8, ValidateError};
+use crate::encoding::{AlwaysValid, Encoding, Utf16, Utf32, Utf8, ValidateError};
 #[cfg(feature = "alloc")]
 pub use crate::err::RecodeError;
 #[cfg(feature = "alloc")]
@@ -255,6 +255,26 @@ impl<E: Encoding> Str<E> {
                 },
             }
         }
+    }
+}
+
+impl<E: AlwaysValid> Str<E> {
+    /// Create a `Str` from a byte slice, never failing.
+    ///
+    /// This method is provided for encodings that have no invalid byte patterns, meaning encoding
+    /// validity checking is skipped.
+    pub fn from_bytes_infallible(bytes: &[u8]) -> &Str<E> {
+        // SAFETY: All possible byte patterns are valid for this encoding.
+        unsafe { Self::from_bytes_unchecked(bytes) }
+    }
+
+    /// Create a `Str` from a mutable byte slice, never failing.
+    ///
+    /// This method is provided for encodings that have no invalid byte patterns, meaning encoding
+    /// validity checking is skipped.
+    pub fn from_bytes_infallible_mut(bytes: &mut [u8]) -> &mut Str<E> {
+        // SAFETY: All possible byte patterns are valid for this encoding.
+        unsafe { Self::from_bytes_unchecked_mut(bytes) }
     }
 }
 

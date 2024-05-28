@@ -14,9 +14,13 @@ use core::{fmt, ptr};
 
 #[cfg(feature = "alloc")]
 use crate::cstring::CString;
-use crate::encoding::{Encoding, NullTerminable, ValidateError};
+use crate::encoding::{AlwaysValid, Encoding, NullTerminable, ValidateError};
 use crate::str::Str;
 use crate::utils::RangeOpen;
+
+/// Error encountered when creating a [`CStr`] with no terminating null byte.
+#[non_exhaustive]
+pub struct MissingNull;
 
 /// Error encountered while creating a [`CStr`] from bytes until a null byte is encountered
 #[derive(Debug, PartialEq)]
@@ -32,6 +36,18 @@ pub enum FromBytesTilNulError {
 pub enum FromBytesWithNulError {
     /// The input isn't valid for the desired encoding
     Invalid(ValidateError),
+    /// The input contains a null byte not in the final position
+    HasNull {
+        /// The index of the located null byte
+        idx: usize,
+    },
+    /// The input doesn't contain any null bytes
+    MissingNull,
+}
+
+/// Error encountered while creating a [`CStr`] from an [`AlwaysValid`] encoding.
+#[derive(Debug, PartialEq)]
+pub enum FromBytesWithNulValidError {
     /// The input contains a null byte not in the final position
     HasNull {
         /// The index of the located null byte
@@ -105,6 +121,23 @@ impl<E: Encoding + NullTerminable> CStr<E> {
         Ok(unsafe { CStr::from_bytes_with_nul_unchecked(&bytes[..=nul]) })
     }
 
+    /// Create a `CStr` from a mutable byte slice, ending at the first null byte. If there are no
+    /// null bytes in the slice, or the data up till the first null isn't valid in the current
+    /// encoding, then an error will be returned.
+    ///
+    /// Data *past* the first null byte isn't validated, and a successful return doesn't mean that
+    /// data is valid for the current encoding.
+    pub fn from_bytes_til_nul_mut(bytes: &mut [u8]) -> Result<&mut CStr<E>, FromBytesTilNulError> {
+        let nul = bytes
+            .iter()
+            .position(|b| *b == 0)
+            .ok_or(FromBytesTilNulError::MissingNull)?;
+        E::validate(&bytes[..nul]).map_err(FromBytesTilNulError::Invalid)?;
+        // SAFETY: End position is the location of first null byte, prior bytes have been validated
+        //         for the encoding.
+        Ok(unsafe { CStr::from_bytes_with_nul_unchecked_mut(&mut bytes[..=nul]) })
+    }
+
     /// Create a `CStr` from a byte slice, with a single null byte at the end. If there is no null
     /// byte, or there are null bytes at any other position in the slice, an error is returned.
     /// An error will also be returned if the data isn't valid in the current encoding.
@@ -122,6 +155,27 @@ impl<E: Encoding + NullTerminable> CStr<E> {
         // SAFETY: End position validated to be null and only null, prior bytes have been validated
         //         for the encoding.
         Ok(unsafe { CStr::from_bytes_with_nul_unchecked(bytes) })
+    }
+
+    /// Create a `CStr` from a mutable byte slice, with a single null byte at the end. If there is
+    /// no null byte, or there are null bytes at any other position in the slice, an error is
+    /// returned. An error will also be returned if the data isn't valid in the current encoding.
+    pub fn from_bytes_with_nul_mut(
+        bytes: &mut [u8],
+    ) -> Result<&mut CStr<E>, FromBytesWithNulError> {
+        let end_nul = bytes.last().map(|b| *b == 0).unwrap_or(false);
+        if !end_nul {
+            return Err(FromBytesWithNulError::MissingNull);
+        }
+        let slice = &bytes[..bytes.len() - 1];
+        let internal_nul = slice.iter().position(|b| *b == 0);
+        if let Some(idx) = internal_nul {
+            return Err(FromBytesWithNulError::HasNull { idx });
+        }
+        E::validate(slice).map_err(FromBytesWithNulError::Invalid)?;
+        // SAFETY: End position validated to be null and only null, prior bytes have been validated
+        //         for the encoding.
+        Ok(unsafe { CStr::from_bytes_with_nul_unchecked_mut(bytes) })
     }
 
     /// Get a pointer suitable for passing to native C code. The returned point may be either `i8`
@@ -199,6 +253,69 @@ impl<E: Encoding + NullTerminable> CStr<E> {
         let bytes = self.as_bytes_with_nul();
         // SAFETY: Our internal bytes are guaranteed valid for the encoding.
         unsafe { Str::from_bytes_unchecked(&bytes[..bytes.len() - 1]) }
+    }
+}
+
+impl<E: NullTerminable + AlwaysValid> CStr<E> {
+    /// Create a `CStr` from a byte slice, ending at the first null byte. See
+    /// [`CStr::from_bytes_til_nul`]
+    ///
+    /// This method is provided for encodings that have no invalid byte patterns, meaning encoding
+    /// validity checking is skipped.
+    pub fn from_bytes_til_nul_valid(bytes: &[u8]) -> Result<&CStr<E>, MissingNull> {
+        let nul_pos = bytes.iter().position(|b| *b == 0).ok_or(MissingNull)?;
+        Ok(unsafe { Self::from_bytes_with_nul_unchecked(&bytes[..=nul_pos]) })
+    }
+
+    /// Create a `CStr` from a mutable byte slice, ending at the first null byte. See
+    /// [`CStr::from_bytes_til_nul_mut`]
+    ///
+    /// This method is provided for encodings that have no invalid byte patterns, meaning encoding
+    /// validity checking is skipped.
+    pub fn from_bytes_til_nul_valid_mut(bytes: &mut [u8]) -> Result<&mut CStr<E>, MissingNull> {
+        let nul_pos = bytes.iter().position(|b| *b == 0).ok_or(MissingNull)?;
+        Ok(unsafe { Self::from_bytes_with_nul_unchecked_mut(&mut bytes[..=nul_pos]) })
+    }
+
+    /// Create a `CStr` from a byte slice, with a single null byte at the end. See
+    /// [`CStr::from_bytes_with_nul`]
+    ///
+    /// This method is provided for encodings that have no invalid byte patterns, meaning encoding
+    /// validity checking is skipped.
+    pub fn from_bytes_with_nul_valid(bytes: &[u8]) -> Result<&CStr<E>, FromBytesWithNulValidError> {
+        let end_nul = bytes.last().map(|b| *b == 0).unwrap_or(false);
+        if !end_nul {
+            return Err(FromBytesWithNulValidError::MissingNull);
+        }
+        let slice = &bytes[..bytes.len() - 1];
+        let internal_nul = slice.iter().position(|b| *b == 0);
+        if let Some(idx) = internal_nul {
+            return Err(FromBytesWithNulValidError::HasNull { idx });
+        }
+        // SAFETY: End position validated to be null and only null, all bytes are valid for this
+        //         encoding.
+        Ok(unsafe { CStr::from_bytes_with_nul_unchecked(bytes) })
+    }
+
+    /// Create a `CStr` from a mutable byte slice, with a single null byte at the end. See
+    /// [`CStr::from_bytes_with_nul_mut`]
+    /// This method is provided for encodings that have no invalid byte patterns, meaning encoding
+    /// validity checking is skipped.
+    pub fn from_bytes_with_nul_valid_mut(
+        bytes: &mut [u8],
+    ) -> Result<&mut CStr<E>, FromBytesWithNulValidError> {
+        let end_nul = bytes.last().map(|b| *b == 0).unwrap_or(false);
+        if !end_nul {
+            return Err(FromBytesWithNulValidError::MissingNull);
+        }
+        let slice = &bytes[..bytes.len() - 1];
+        let internal_nul = slice.iter().position(|b| *b == 0);
+        if let Some(idx) = internal_nul {
+            return Err(FromBytesWithNulValidError::HasNull { idx });
+        }
+        // SAFETY: End position validated to be null and only null, all bytes are valid for this
+        //         encoding.
+        Ok(unsafe { CStr::from_bytes_with_nul_unchecked_mut(bytes) })
     }
 }
 

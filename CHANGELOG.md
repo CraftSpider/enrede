@@ -2,6 +2,18 @@
 
 # Unreleased
 
+### Added
+
+- `encoding::AlwaysValid`, for encodings with no invalid byte patterns
+  - `Str::from_bytes_infallible{,_mut}` - infallible variant of `from_bytes{,_mut}`
+  - `String::from_bytes_infallible` - infallible variant of `from_bytes`
+  - `CStr::from_bytes_{with,til}_nul_valid{,_mut}` - no encoding validation variants of
+    equivalent methods.
+  - `CString::new_valid` - no encoding validation variant of `new`
+- Mutable `CStr` creation methods
+  - `from_bytes_with_nul_mut`
+  - `from_bytes_til_nul_mut`
+
 ### Changed
 
 - Updated README.md, replace lib.rs docs with README.md

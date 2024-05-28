@@ -10,7 +10,7 @@ use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut};
 
 use crate::cstring::{CString, NulError};
-use crate::encoding::{ArrayLike, Encoding, NullTerminable, Utf8, ValidateError};
+use crate::encoding::{AlwaysValid, ArrayLike, Encoding, NullTerminable, Utf8, ValidateError};
 use crate::str::Str;
 
 mod chunks;
@@ -130,6 +130,17 @@ impl<E: Encoding + NullTerminable> String<E> {
     /// being able to skip encoding validity checks.
     pub fn into_cstring(self) -> Result<CString<E>, NulError> {
         self.try_into()
+    }
+}
+
+impl<E: AlwaysValid> String<E> {
+    /// Create a `String` from bytes, never failing.
+    ///
+    /// This method is provided for encodings that have no invalid byte patterns, meaning encoding
+    /// validity checking is skipped.
+    pub fn from_bytes_infallible(bytes: Vec<u8>) -> String<E> {
+        // SAFETY: All possible byte patterns are valid for this encoding.
+        unsafe { String::from_bytes_unchecked(bytes) }
     }
 }
 

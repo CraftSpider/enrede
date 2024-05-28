@@ -8,7 +8,7 @@ use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut};
 
 use crate::cstr::CStr;
-use crate::encoding::{Encoding, NullTerminable, ValidateError};
+use crate::encoding::{AlwaysValid, Encoding, NullTerminable, ValidateError};
 #[cfg(feature = "alloc")]
 pub use crate::err::RecodeError;
 use crate::str::Str;
@@ -135,6 +135,20 @@ impl<E: Encoding + NullTerminable> CString<E> {
     /// Convert this `CString` into bytes, including the trailing null byte
     pub fn into_bytes_with_nul(self) -> Vec<u8> {
         self.1
+    }
+}
+
+impl<E: NullTerminable + AlwaysValid> CString<E> {
+    /// Create a new C string from a container of bytes. The provided data should contain no null
+    /// bytes. See [`CString::new`] for further details.
+    ///
+    /// This method is provided for encodings that have no invalid byte patterns, meaning encoding
+    /// validity checking is skipped.
+    pub fn new_valid<T>(bytes: T) -> Result<CString<E>, NulError>
+    where
+        T: Into<Vec<u8>>,
+    {
+        String::from_bytes_infallible(bytes.into()).try_into()
     }
 }
 

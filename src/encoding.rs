@@ -124,6 +124,10 @@ pub trait Encoding: Sealed {
 /// - The format either doesn't map the null byte to a character, or maps it to the null character.
 pub trait NullTerminable: Encoding {}
 
+/// An encoding for which all bytes are always valid, meaning validation of a byte slice for this
+/// encoding will never fail.
+pub trait AlwaysValid: Encoding {}
+
 /// An error encountered while validating a byte stream for a certain encoding.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ValidateError {

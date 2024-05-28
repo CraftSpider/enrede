@@ -1,5 +1,5 @@
 use crate::encoding::sealed::Sealed;
-use crate::encoding::{Encoding, NullTerminable, ValidateError};
+use crate::encoding::{AlwaysValid, Encoding, NullTerminable, ValidateError};
 use crate::str::Str;
 
 const DECODE_MAP_1251: [char; 128] = [
@@ -194,6 +194,8 @@ impl Encoding for Win1252Loose {
 }
 
 impl NullTerminable for Win1252Loose {}
+
+impl AlwaysValid for Win1252Loose {}
 
 #[cfg(test)]
 mod tests {
