@@ -258,11 +258,25 @@ impl<E: Encoding + NullTerminable> CStr<E> {
     }
 
     pub fn split_at(&self, idx: usize) -> Option<(&Str<E>, &CStr<E>)> {
-        todo!()
+        if self.is_char_boundary(idx) && idx < self.len() {
+            let (start, end) = self.1.split_at(idx);
+            let start = unsafe { Str::from_bytes_unchecked(start) };
+            let end = unsafe { CStr::from_bytes_with_nul_unchecked(end) };
+            Some((start, end))
+        } else {
+            None
+        }
     }
 
     pub fn split_at_mut(&mut self, idx: usize) -> Option<(&mut Str<E>, &mut CStr<E>)> {
-        todo!()
+        if self.is_char_boundary(idx) && idx < self.len() {
+            let (start, end) = self.1.split_at_mut(idx);
+            let start = unsafe { Str::from_bytes_unchecked_mut(start) };
+            let end = unsafe { CStr::from_bytes_with_nul_unchecked_mut(end) };
+            Some((start, end))
+        } else {
+            None
+        }
     }
 }
 

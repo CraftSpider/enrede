@@ -188,15 +188,18 @@ impl<E: Encoding> Str<E> {
         CharIndices::new(self)
     }
 
+    pub fn copy_from(&mut self, other: &Str<E>) {
+        if self.len() != other.len() {
+            panic!("")
+        }
+    }
+
     pub fn split_at(&self, idx: usize) -> Option<(&Str<E>, &Str<E>)> {
         if self.is_char_boundary(idx) && idx < self.len() {
             let (start, end) = self.1.split_at(idx);
-            Some(unsafe {
-                (
-                    Str::from_bytes_unchecked(start),
-                    Str::from_bytes_unchecked(end),
-                )
-            })
+            let start = unsafe { Str::from_bytes_unchecked(start) };
+            let end = unsafe { Str::from_bytes_unchecked(end) };
+            Some((start, end))
         } else {
             None
         }
@@ -205,6 +208,11 @@ impl<E: Encoding> Str<E> {
     pub fn split_at_mut(&mut self, idx: usize) -> Option<(&mut Str<E>, &mut Str<E>)> {
         if self.is_char_boundary(idx) && idx < self.len() {
             let (start, end) = self.1.split_at_mut(idx);
+            let start = unsafe { Str::from_bytes_unchecked_mut(start) };
+            let end = unsafe { Str::from_bytes_unchecked_mut(end) };
+            Some((start, end))
+        } else {
+            None
         }
     }
 
