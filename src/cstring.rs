@@ -117,6 +117,7 @@ impl<E: Encoding + NullTerminable> CString<E> {
                 cause: CStringErrorCause::Invalid(e),
             });
         }
+        // SAFETY: Data validated to contain no nulls and be valid for the encoding
         Ok(unsafe { Self::from_vec_unchecked(bytes) })
     }
 
@@ -160,6 +161,7 @@ impl<E: NullTerminable> fmt::Debug for CString<E> {
 
 impl<E: NullTerminable> Default for CString<E> {
     fn default() -> Self {
+        // SAFETY: Empty vector is trivially valid
         unsafe { CString::from_vec_unchecked(Vec::new()) }
     }
 }
@@ -182,12 +184,14 @@ impl<E: NullTerminable> Deref for CString<E> {
     type Target = CStr<E>;
 
     fn deref(&self) -> &Self::Target {
+        // SAFETY: Internal data guaranteed valid C string data
         unsafe { CStr::from_bytes_with_nul_unchecked(&self.1) }
     }
 }
 
 impl<E: NullTerminable> DerefMut for CString<E> {
     fn deref_mut(&mut self) -> &mut Self::Target {
+        // SAFETY: Internal data guaranteed valid C string data
         unsafe { CStr::from_bytes_with_nul_unchecked_mut(&mut self.1) }
     }
 }
@@ -232,6 +236,7 @@ impl<E: NullTerminable> TryFrom<String<E>> for CString<E> {
         if let Some(nul_pos) = bytes.iter().position(|b| *b == 0) {
             return Err(NulError { bytes, nul_pos });
         }
+        // SAFETY: Internal data has been validated to have no nulls
         Ok(unsafe { CString::from_vec_unchecked(bytes) })
     }
 }

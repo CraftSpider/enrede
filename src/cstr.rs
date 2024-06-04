@@ -11,6 +11,7 @@ use core::marker::PhantomData;
 use core::ops::{Bound, Deref, Index};
 use core::slice::SliceIndex;
 use core::{fmt, ptr};
+use std::ops::RangeBounds;
 
 #[cfg(feature = "alloc")]
 use crate::cstring::CString;
@@ -192,6 +193,10 @@ impl<E: Encoding + NullTerminable> CStr<E> {
         &self.1
     }
 
+    unsafe fn as_bytes_with_nul_mut(&mut self) -> &mut [u8] {
+        &mut self.1
+    }
+
     fn check_bounds<R>(&self, idx: &R) -> Option<()>
     where
         R: RangeOpen<usize>,
@@ -257,10 +262,101 @@ impl<E: Encoding + NullTerminable> CStr<E> {
         unsafe { Str::from_bytes_unchecked(&bytes[..bytes.len() - 1]) }
     }
 
+    /// Convert this `CStr` into a mutable [`Str`]. This method is unsafe because it is possible to
+    /// write null bytes into the string via methods such as [`Str::copy_from`].
+    ///
+    /// # Safety
+    ///
+    /// The returned reference must not be used to write null bytes into the C string.
+    pub unsafe fn as_str_mut(&mut self) -> &mut Str<E> {
+        let bytes = self.as_bytes_with_nul_mut();
+        let len = bytes.len();
+        Str::from_bytes_unchecked_mut(&mut bytes[..len - 1])
+    }
+
+    /// Copy the data of another C-string into this C-string. Due to the limitations of slicing C
+    /// strings only till the end, the [`CStr::copy_range`] method is provided as it is most often
+    /// more useful than this one.
+    pub fn copy_from(&mut self, other: &CStr<E>) {
+        if self.len() != other.len() {
+            panic!(
+                "Source string length ({}) doesn't match destination C string length ({})",
+                self.len(),
+                other.len(),
+            );
+        }
+        self.1.copy_from_slice(other.as_bytes());
+    }
+
+    /// Copy the data from one C string into this one, taking the data from the first range and
+    /// inserting it into the second range. This method panics if any of the range ends don't fall
+    /// on a character boundary. This is the more powerful variant of [`CStr::copy_from`]`.
+    pub fn copy_range<R1, R2>(
+        &mut self,
+        other: &CStr<E>,
+        src_range: R1,
+        dest_range: R2,
+    )
+    where
+        R1: RangeBounds<usize> + SliceIndex<[u8], Output = [u8]> + Clone,
+        R2: RangeBounds<usize> + SliceIndex<[u8], Output = [u8]> + Clone,
+    {
+        use std::fmt::Write;
+
+        fn bounds_to_range<W: Write>(f: &mut W, range: &impl RangeBounds<usize>) -> fmt::Result {
+            match range.start_bound() {
+                Bound::Included(i) => write!(f, "{}..", i)?,
+                Bound::Excluded(e) => write!(f, "{}..", e+1)?,
+                Bound::Unbounded => (),
+            }
+            match range.end_bound() {
+                Bound::Included(i) => write!(f, "={}", i)?,
+                Bound::Excluded(e) => write!(f, "{}", e)?,
+                Bound::Unbounded => (),
+            }
+            Ok(())
+        }
+
+        let self_len = self.len();
+
+        let dest = self.1.get_mut(src_range.clone())
+            .unwrap_or_else(|| {
+                let mut str = String::new();
+                write!(&mut str, "Source string range (").unwrap();
+                bounds_to_range(&mut str, &src_range).unwrap();
+                write!(&mut str, ") out of bounds for C string length ({})", self_len).unwrap();
+                panic!("{}", str)
+            });
+
+        let src = other.1.get(dest_range.clone())
+            .unwrap_or_else(|| {
+                let mut str = String::new();
+                write!(&mut str, "Destination string range (").unwrap();
+                bounds_to_range(&mut str, &dest_range).unwrap();
+                write!(&mut str, ") out of bounds for C string length ({})", other.len()).unwrap();
+                panic!("{}", str)
+            });
+
+        if dest.len() != src.len() {
+            panic!(
+                "Source range length ({}) doesn't match destination range length ({})",
+                src.len(),
+                dest.len(),
+            );
+        }
+
+        dest.copy_from_slice(src)
+    }
+
+    /// Split this string at an index, returning the two substrings on either side. This method
+    /// panics if the index doesn't lie on a character boundary. The right-side substring is
+    /// returned as a `CStr`, as it retains the trailing null.
     pub fn split_at(&self, idx: usize) -> Option<(&Str<E>, &CStr<E>)> {
         if self.is_char_boundary(idx) && idx < self.len() {
             let (start, end) = self.1.split_at(idx);
+            // SAFETY: Index is a character boundary. Internal data guaranteed valid.
             let start = unsafe { Str::from_bytes_unchecked(start) };
+            // SAFETY: Index is a character boundary. Trailing data guaranteed a valid C string.
             let end = unsafe { CStr::from_bytes_with_nul_unchecked(end) };
             Some((start, end))
         } else {
@@ -268,10 +364,15 @@ impl<E: Encoding + NullTerminable> CStr<E> {
         }
     }
 
+    /// Split this string mutably at an index, returning the two substrings on either side. This
+    /// method panics if the index doesn't lie on a character boundary. The right-side substring is
+    /// returned as a `CStr`, as it retains the trailing null.
     pub fn split_at_mut(&mut self, idx: usize) -> Option<(&mut Str<E>, &mut CStr<E>)> {
         if self.is_char_boundary(idx) && idx < self.len() {
             let (start, end) = self.1.split_at_mut(idx);
+            // SAFETY: Index is a character boundary. Internal data guaranteed valid.
             let start = unsafe { Str::from_bytes_unchecked_mut(start) };
+            // SAFETY: Index is a character boundary. Trailing data guaranteed a valid C string.
             let end = unsafe { CStr::from_bytes_with_nul_unchecked_mut(end) };
             Some((start, end))
         } else {
@@ -288,6 +389,7 @@ impl<E: NullTerminable + AlwaysValid> CStr<E> {
     /// validity checking is skipped.
     pub fn from_bytes_til_nul_valid(bytes: &[u8]) -> Result<&CStr<E>, MissingNull> {
         let nul_pos = bytes.iter().position(|b| *b == 0).ok_or(MissingNull)?;
+        // SAFETY: Encoding has no invalid byte patterns. Data contains no internal nulls.
         Ok(unsafe { Self::from_bytes_with_nul_unchecked(&bytes[..=nul_pos]) })
     }
 
@@ -298,6 +400,7 @@ impl<E: NullTerminable + AlwaysValid> CStr<E> {
     /// validity checking is skipped.
     pub fn from_bytes_til_nul_valid_mut(bytes: &mut [u8]) -> Result<&mut CStr<E>, MissingNull> {
         let nul_pos = bytes.iter().position(|b| *b == 0).ok_or(MissingNull)?;
+        // SAFETY: Encoding has no invalid byte patterns. Data contains no internal nulls.
         Ok(unsafe { Self::from_bytes_with_nul_unchecked_mut(&mut bytes[..=nul_pos]) })
     }
 

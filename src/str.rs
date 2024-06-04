@@ -103,6 +103,16 @@ impl<E: Encoding> Str<E> {
         &self.1
     }
 
+    /// Get the underlying bytes for this string mutably. This method is unsafe because it is
+    /// possible to write invalid bytes for the encoding into the slice.
+    ///
+    /// # Safety
+    ///
+    /// The returned reference must not be used to write invalid data into the string.
+    pub unsafe fn as_bytes_mut(&mut self) -> &mut [u8] {
+        &mut self.1
+    }
+
     fn check_bounds<R>(&self, idx: &R) -> Option<()>
     where
         R: RangeBounds<usize>,
@@ -188,16 +198,26 @@ impl<E: Encoding> Str<E> {
         CharIndices::new(self)
     }
 
+    /// Copy the data from another string into this one.
     pub fn copy_from(&mut self, other: &Str<E>) {
         if self.len() != other.len() {
-            panic!("")
+            panic!(
+                "Source string length ({}) doesn't match destination string length ({})",
+                other.len(),
+                self.len(),
+            );
         }
+        self.1.copy_from_slice(other.as_bytes());
     }
 
+    /// Split this string at an index, returning the two substrings on either side. This method
+    /// panics if the index doesn't lie on a character boundary.
     pub fn split_at(&self, idx: usize) -> Option<(&Str<E>, &Str<E>)> {
         if self.is_char_boundary(idx) && idx < self.len() {
             let (start, end) = self.1.split_at(idx);
+            // SAFETY: Index is a character boundary. Internal data guaranteed valid.
             let start = unsafe { Str::from_bytes_unchecked(start) };
+            // SAFETY: Index is a character boundary. Internal data guaranteed valid.
             let end = unsafe { Str::from_bytes_unchecked(end) };
             Some((start, end))
         } else {
@@ -205,10 +225,14 @@ impl<E: Encoding> Str<E> {
         }
     }
 
+    /// Split this string mutably at an index, returning the two substrings on either side. This
+    /// method panics if the index doesn't lie on a character boundary.
     pub fn split_at_mut(&mut self, idx: usize) -> Option<(&mut Str<E>, &mut Str<E>)> {
         if self.is_char_boundary(idx) && idx < self.len() {
             let (start, end) = self.1.split_at_mut(idx);
+            // SAFETY: Index is a character boundary. Internal data guaranteed valid.
             let start = unsafe { Str::from_bytes_unchecked_mut(start) };
+            // SAFETY: Index is a character boundary. Internal data guaranteed valid.
             let end = unsafe { Str::from_bytes_unchecked_mut(end) };
             Some((start, end))
         } else {
