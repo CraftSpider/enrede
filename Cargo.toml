@@ -16,3 +16,14 @@ alloc = []
 [dependencies]
 bytemuck = { version = "1.16", features = ["derive", "must_cast"] }
 arrayvec = "0.7"
+
+[dev-dependencies]
+criterion = "0.5"
+rand = "0.8"
+
+[target.'cfg(unix)'.dev-dependencies]
+pprof = { version = "0.13", features = ["criterion", "flamegraph"] }
+
+[[bench]]
+name = "validate"
+harness = false
