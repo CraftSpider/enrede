@@ -8,10 +8,10 @@ use core::borrow::Borrow;
 use core::ffi::c_char;
 use core::hash::{Hash, Hasher};
 use core::marker::PhantomData;
+use core::ops::RangeBounds;
 use core::ops::{Bound, Deref, Index};
 use core::slice::SliceIndex;
 use core::{fmt, ptr};
-use core::ops::RangeBounds;
 
 #[cfg(feature = "alloc")]
 use crate::cstring::CString;
@@ -291,12 +291,7 @@ impl<E: Encoding + NullTerminable> CStr<E> {
     /// Copy the data from one C string into this one, taking the data from the first range and
     /// inserting it into the second range. This method panics if any of the range ends don't fall
     /// on a character boundary. This is the more powerful variant of [`CStr::copy_from`]`.
-    pub fn copy_range<R1, R2>(
-        &mut self,
-        other: &CStr<E>,
-        src_range: R1,
-        dest_range: R2,
-    )
+    pub fn copy_range<R1, R2>(&mut self, other: &CStr<E>, src_range: R1, dest_range: R2)
     where
         R1: RangeBounds<usize> + SliceIndex<[u8], Output = [u8]> + Clone,
         R2: RangeBounds<usize> + SliceIndex<[u8], Output = [u8]> + Clone,
@@ -306,7 +301,7 @@ impl<E: Encoding + NullTerminable> CStr<E> {
         fn bounds_to_range<W: Write>(f: &mut W, range: &impl RangeBounds<usize>) -> fmt::Result {
             match range.start_bound() {
                 Bound::Included(i) => write!(f, "{}..", i)?,
-                Bound::Excluded(e) => write!(f, "{}..", e+1)?,
+                Bound::Excluded(e) => write!(f, "{}..", e + 1)?,
                 Bound::Unbounded => (),
             }
             match range.end_bound() {
@@ -319,35 +314,45 @@ impl<E: Encoding + NullTerminable> CStr<E> {
 
         let self_len = self.len();
 
-        let dest = self.1.get_mut(src_range.clone())
-            .unwrap_or_else(|| {
-                #[cfg(feature = "alloc")]
-                let str = {
-                    let mut str = String::new();
-                    write!(&mut str, "Source string range (").unwrap();
-                    bounds_to_range(&mut str, &src_range).unwrap();
-                    write!(&mut str, ") out of bounds for C string length ({})", self_len).unwrap();
-                    str
-                };
-                #[cfg(not(feature = "alloc"))]
-                let str = "Source string range out of bounds for C string length";
-                panic!("{}", str)
-            });
+        let dest = self.1.get_mut(src_range.clone()).unwrap_or_else(|| {
+            #[cfg(feature = "alloc")]
+            let str = {
+                use alloc::string::String;
+                let mut str = String::new();
+                write!(&mut str, "Source string range (").unwrap();
+                bounds_to_range(&mut str, &src_range).unwrap();
+                write!(
+                    &mut str,
+                    ") out of bounds for C string length ({})",
+                    self_len
+                )
+                .unwrap();
+                str
+            };
+            #[cfg(not(feature = "alloc"))]
+            let str = "Source string range out of bounds for C string length";
+            panic!("{}", str)
+        });
 
-        let src = other.1.get(dest_range.clone())
-            .unwrap_or_else(|| {
-                #[cfg(feature = "alloc")]
-                let str = {
-                    let mut str = String::new();
-                    write!(&mut str, "Destination string range (").unwrap();
-                    bounds_to_range(&mut str, &dest_range).unwrap();
-                    write!(&mut str, ") out of bounds for C string length ({})", other.len()).unwrap();
-                    str
-                };
-                #[cfg(not(feature = "alloc"))]
-                let str = "Destination string range out of bounds for C string length";
-                panic!("{}", str)
-            });
+        let src = other.1.get(dest_range.clone()).unwrap_or_else(|| {
+            #[cfg(feature = "alloc")]
+            let str = {
+                use alloc::string::String;
+                let mut str = String::new();
+                write!(&mut str, "Destination string range (").unwrap();
+                bounds_to_range(&mut str, &dest_range).unwrap();
+                write!(
+                    &mut str,
+                    ") out of bounds for C string length ({})",
+                    other.len()
+                )
+                .unwrap();
+                str
+            };
+            #[cfg(not(feature = "alloc"))]
+            let str = "Destination string range out of bounds for C string length";
+            panic!("{}", str)
+        });
 
         if dest.len() != src.len() {
             panic!(
