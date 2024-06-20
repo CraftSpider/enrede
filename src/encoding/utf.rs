@@ -110,10 +110,11 @@ macro_rules! utf16_impl {
                     None
                 };
 
+                // `get_unchecked` is the same speed
+                // `try_fold` variant is significantly slower
                 let mut surrogate = false;
                 for (idx, chunk) in chunks.enumerate() {
-                    let (a, b) = unsafe { (*chunk.get_unchecked(0), *chunk.get_unchecked(1)) };
-                    let c = u16::$method_from([a, b]);
+                    let c = u16::$method_from([chunk[0], chunk[1]]);
                     let kind = Kind::of(c);
 
                     if !surrogate && kind == Kind::High {
