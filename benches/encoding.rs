@@ -7,13 +7,18 @@ use std::hint::black_box;
 mod utils;
 
 pub fn validate_ascii(c: &mut Criterion) {
-    let mut data: Vec<u8> = Vec::new();
-    for _ in 0..1000 {
-        data.push(thread_rng().gen_range(0..128))
-    }
-
     c.bench_function("Ascii::validate", |b| {
-        b.iter(|| Ascii::validate(black_box(&data)).unwrap())
+        b.iter_batched_ref(
+            || {
+                let mut data: Vec<u8> = Vec::new();
+                for _ in 0..1024 {
+                    data.push(thread_rng().gen_range(0..128))
+                }
+                data
+            },
+            |data| Ascii::validate(black_box(data)).unwrap(),
+            BatchSize::SmallInput,
+        )
     });
 }
 
@@ -46,13 +51,18 @@ pub fn decode_ascii(c: &mut Criterion) {
 }
 
 pub fn validate_utf16(c: &mut Criterion) {
-    let mut data: Vec<u8> = Vec::new();
-    for _ in 0..1000 {
-        data.extend(Utf16::encode_char(rand::random::<char>()).unwrap());
-    }
-
     c.bench_function("Utf16::validate", |b| {
-        b.iter(|| Utf16::validate(black_box(&data)).unwrap())
+        b.iter_batched_ref(
+            || {
+                let mut data: Vec<u8> = Vec::new();
+                while data.len() < 1024 {
+                    data.extend(Utf16::encode_char(rand::random::<char>()).unwrap());
+                }
+                data
+            },
+            |data| Utf16::validate(black_box(data)).unwrap(),
+            BatchSize::SmallInput,
+        )
     });
 }
 
