@@ -28,5 +28,6 @@ pprof = { version = "0.13", features = ["criterion", "flamegraph"] }
 debug = true
 
 [[bench]]
-name = "validate"
+name = "encoding"
 harness = false
+required-features = ["alloc"]

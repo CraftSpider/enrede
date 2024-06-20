@@ -64,9 +64,9 @@ enum Kind {
 impl Kind {
     fn of(c: u16) -> Kind {
         match c {
-            ..0xD800 => Kind::Char,
-            0xD800..0xDC00 => Kind::High,
-            0xDC00..0xE000 => Kind::Low,
+            ..=0xD7FF => Kind::Char,
+            0xD800..=0xDBFF => Kind::High,
+            0xDC00..=0xDFFF => Kind::Low,
             0xE000.. => Kind::Char,
         }
     }
