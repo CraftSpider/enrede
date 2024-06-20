@@ -9,8 +9,6 @@ use core::ops::{Deref, DerefMut};
 
 use crate::cstr::CStr;
 use crate::encoding::{AlwaysValid, Encoding, NullTerminable, ValidateError};
-#[cfg(feature = "alloc")]
-pub use crate::err::RecodeError;
 use crate::str::Str;
 use crate::string::String;
 

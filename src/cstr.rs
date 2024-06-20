@@ -296,8 +296,10 @@ impl<E: Encoding + NullTerminable> CStr<E> {
         R1: RangeBounds<usize> + SliceIndex<[u8], Output = [u8]> + Clone,
         R2: RangeBounds<usize> + SliceIndex<[u8], Output = [u8]> + Clone,
     {
+        #[cfg(feature = "alloc")]
         use core::fmt::Write;
 
+        #[cfg(feature = "alloc")]
         fn bounds_to_range<W: Write>(f: &mut W, range: &impl RangeBounds<usize>) -> fmt::Result {
             match range.start_bound() {
                 Bound::Included(i) => write!(f, "{}..", i)?,
@@ -312,6 +314,7 @@ impl<E: Encoding + NullTerminable> CStr<E> {
             Ok(())
         }
 
+        #[cfg(feature = "alloc")]
         let self_len = self.len();
 
         let dest = self.1.get_mut(src_range.clone()).unwrap_or_else(|| {

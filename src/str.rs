@@ -18,7 +18,6 @@ use core::{fmt, mem, ptr, slice};
 #[cfg(feature = "alloc")]
 use crate::encoding::RecodeCause;
 use crate::encoding::{AlwaysValid, Encoding, Utf16, Utf32, Utf8, ValidateError};
-#[cfg(feature = "alloc")]
 pub use crate::err::RecodeError;
 #[cfg(feature = "alloc")]
 use crate::string::String;

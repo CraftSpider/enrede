@@ -24,6 +24,9 @@ rand = "0.8"
 [target.'cfg(unix)'.dev-dependencies]
 pprof = { version = "0.13", features = ["criterion", "flamegraph"] }
 
+[profile.bench]
+debug = true
+
 [[bench]]
 name = "validate"
 harness = false

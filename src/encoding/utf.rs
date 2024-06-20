@@ -54,6 +54,24 @@ impl NullTerminable for Utf8 {}
 /// The [UTF-16](https://en.wikipedia.org/wiki/UTF-16) encoding
 pub type Utf16 = Utf16LE;
 
+#[derive(PartialEq, Eq)]
+enum Kind {
+    Char,
+    High,
+    Low,
+}
+
+impl Kind {
+    fn of(c: u16) -> Kind {
+        match c {
+            ..0xD800 => Kind::Char,
+            0xD800..0xDC00 => Kind::High,
+            0xDC00..0xE000 => Kind::Low,
+            0xE000.. => Kind::Char,
+        }
+    }
+}
+
 macro_rules! utf16_impl {
     (
         $name:ident,
@@ -81,28 +99,33 @@ macro_rules! utf16_impl {
             }
 
             fn validate(bytes: &[u8]) -> Result<(), ValidateError> {
+                let chunks = bytes.chunks_exact(2);
+
+                let error = if let [_] = chunks.remainder() {
+                    Some(ValidateError {
+                        valid_up_to: bytes.len() - 1,
+                        error_len: None,
+                    })
+                } else {
+                    None
+                };
+
                 let mut surrogate = false;
+                for (idx, chunk) in chunks.enumerate() {
+                    let (a, b) = unsafe { (*chunk.get_unchecked(0), *chunk.get_unchecked(1)) };
+                    let c = u16::$method_from([a, b]);
+                    let kind = Kind::of(c);
 
-                for (idx, chunk) in bytes.chunks(2).enumerate() {
-                    if chunk.len() != 2 {
-                        return Err(ValidateError {
-                            valid_up_to: idx * 2,
-                            error_len: None,
-                        });
-                    }
-
-                    let c = u16::$method_from([chunk[0], chunk[1]]);
-                    if !surrogate && (0xD800..0xDC00).contains(&c) {
+                    if !surrogate && kind == Kind::High {
                         surrogate = true;
-                    } else if surrogate && (0xDC00..0xE000).contains(&c) {
+                    } else if surrogate && kind == Kind::Low {
                         surrogate = false;
-                    } else if surrogate || !((..0xD800).contains(&c) || (0xE000..).contains(&c)) {
-                        let err_len =
-                            if surrogate && !((..0xD800).contains(&c) || (0xE000..).contains(&c)) {
-                                4
-                            } else {
-                                2
-                            };
+                    } else if surrogate || kind != Kind::Char {
+                        let err_len = if surrogate && kind != Kind::Char {
+                            4
+                        } else {
+                            2
+                        };
                         let idx = if surrogate { idx - 1 } else { idx };
                         return Err(ValidateError {
                             valid_up_to: idx * 2,
@@ -110,6 +133,7 @@ macro_rules! utf16_impl {
                         });
                     }
                 }
+
                 if surrogate {
                     return Err(ValidateError {
                         valid_up_to: bytes.len() - 2,
@@ -117,7 +141,10 @@ macro_rules! utf16_impl {
                     });
                 }
 
-                Ok(())
+                match error {
+                    Some(err) => Err(err),
+                    None => Ok(()),
+                }
             }
 
             fn encode_char(c: char) -> Option<Self::Bytes> {
