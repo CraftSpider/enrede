@@ -1,6 +1,8 @@
 use crate::encoding::sealed::Sealed;
 use crate::encoding::{NullTerminable, ValidateError};
 use crate::{Encoding, Str};
+#[cfg(feature = "rand")]
+use rand::{distributions::Distribution, Rng};
 
 const DECODE_MAP_8859_2: [char; 96] = [
     ' ', 'Ą', '˘', 'Ł', '¤', 'Ľ', 'Ś', '§', '¨', 'Š', 'Ş', 'Ť', 'Ź', '\u{AD}', 'Ž', 'Ż', '°', 'ą',
@@ -81,6 +83,19 @@ impl Encoding for Iso8859_2 {
 
 impl NullTerminable for Iso8859_2 {}
 
+#[cfg(feature = "rand")]
+impl Distribution<char> for Iso8859_2 {
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> char {
+        // Total number of characters in encoding
+        let c = rng.gen_range(0u8..112);
+        if c < 95 {
+            char::from(c + 0x20)
+        } else {
+            DECODE_MAP_8859_2[(c - 95) as usize]
+        }
+    }
+}
+
 /// The [ISO/IEC 8859-15](https://en.wikipedia.org/wiki/ISO/IEC_8859-15) encoding.
 #[non_exhaustive]
 pub struct Iso8859_15;
@@ -141,3 +156,16 @@ impl Encoding for Iso8859_15 {
 }
 
 impl NullTerminable for Iso8859_15 {}
+
+#[cfg(feature = "rand")]
+impl Distribution<char> for Iso8859_15 {
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> char {
+        // Total number of characters in encoding
+        let c = rng.gen_range(0u8..112);
+        if c < 95 {
+            char::from(c + 0x20)
+        } else {
+            DECODE_MAP_8859_15[(c - 95) as usize]
+        }
+    }
+}

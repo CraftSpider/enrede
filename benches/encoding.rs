@@ -6,6 +6,24 @@ use rand::{thread_rng, Rng};
 
 mod utils;
 
+// fn validate_encoding<E: Encoding>(c: &mut Criterion) {
+//     c.bench_function(&format!("{}::validate", E::shorthand()), |b| {
+//         b.iter_batched_ref(
+//             || {
+//                 let mut data: Vec<u8> = Vec::new();
+//                 while data.len() < 1024 {
+//                     data.push(todo!(
+//                         "Way to get a random character valid for the encoding?"
+//                     ));
+//                 }
+//                 data
+//             },
+//             |data| E::validate(black_box(data)).unwrap(),
+//             BatchSize::SmallInput,
+//         )
+//     });
+// }
+
 pub fn validate_ascii(c: &mut Criterion) {
     c.bench_function("Ascii::validate", |b| {
         b.iter_batched_ref(

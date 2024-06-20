@@ -1,6 +1,8 @@
+#![cfg(feature = "rand")]
 use crate::encoding::sealed::Sealed;
 use crate::encoding::{AlwaysValid, Encoding, NullTerminable, ValidateError};
 use crate::str::Str;
+use rand::{distributions::Distribution, Rng};
 
 const DECODE_MAP_1251: [char; 128] = [
     'Ђ', 'Ѓ', '‚', 'ѓ', '„', '…', '†', '‡', '€', '‰', 'Љ', '‹', 'Њ', 'Ќ', 'Ћ', 'Џ', 'ђ', '‘', '’',
@@ -79,6 +81,20 @@ impl Encoding for Win1251 {
 
 impl NullTerminable for Win1251 {}
 
+impl Distribution<char> for Win1251 {
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> char {
+        // Number of characters
+        let c = rng.gen_range(0u8..255);
+        if c <= 0x7F {
+            char::from(c)
+        } else if c < 0x98 {
+            DECODE_MAP_1251[(c - 0x80) as usize]
+        } else {
+            DECODE_MAP_1251[(c + 1 - 0x80) as usize]
+        }
+    }
+}
+
 /// The [Windows-1252](https://en.wikipedia.org/wiki/Windows-1252) encoding.
 #[non_exhaustive]
 pub struct Win1252;
@@ -141,6 +157,25 @@ impl Encoding for Win1252 {
 
 impl NullTerminable for Win1252 {}
 
+impl Distribution<char> for Win1252 {
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> char {
+        // Number of characters
+        let c = rng.gen_range(0u8..251);
+        if c <= 0x7F {
+            char::from(c)
+        } else {
+            let offset = match c {
+                ..=0x80 => 0,
+                ..=0x8C => 1,
+                ..=0x8E => 2,
+                ..=0x9C => 4,
+                ..=0xFF => 5,
+            };
+            DECODE_MAP_1252[(c + offset - 0x80) as usize]
+        }
+    }
+}
+
 /// The [Windows-1252](https://en.wikipedia.org/wiki/Windows-1252) encoding, with empty spots
 /// replaced by the corresponding C1 control codes.
 #[non_exhaustive]
@@ -196,6 +231,18 @@ impl Encoding for Win1252Loose {
 impl NullTerminable for Win1252Loose {}
 
 impl AlwaysValid for Win1252Loose {}
+
+impl Distribution<char> for Win1252Loose {
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> char {
+        // Number of characters
+        let c = rng.gen::<u8>();
+        if c <= 0x7F {
+            char::from(c)
+        } else {
+            DECODE_MAP_1252[(c - 0x80) as usize]
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {

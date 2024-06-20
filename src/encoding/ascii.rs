@@ -1,6 +1,8 @@
 use crate::encoding::sealed::Sealed;
 use crate::encoding::{AlwaysValid, NullTerminable, ValidateError};
 use crate::{Encoding, Str};
+#[cfg(feature = "rand")]
+use rand::{distributions::Distribution, Rng};
 
 /// The [ASCII](https://en.wikipedia.org/wiki/ASCII) encoding.
 #[non_exhaustive]
@@ -57,6 +59,12 @@ impl Encoding for Ascii {
 
 impl NullTerminable for Ascii {}
 
+impl Distribution<char> for Ascii {
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> char {
+        char::from(rng.gen_range(0..128))
+    }
+}
+
 /// The [Extended ASCII](https://en.wikipedia.org/wiki/ASCII#8-bit_codes) encoding. This encoding is
 /// not assign any particular meaning to values beyond 127 - it simply round-trips them as `char`s
 /// of that exact codepoint value.
@@ -106,6 +114,12 @@ impl Encoding for ExtendedAscii {
 impl NullTerminable for ExtendedAscii {}
 
 impl AlwaysValid for ExtendedAscii {}
+
+impl Distribution<char> for ExtendedAscii {
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> char {
+        char::from(rng.gen::<u8>())
+    }
+}
 
 #[cfg(test)]
 mod tests {

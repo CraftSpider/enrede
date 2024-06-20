@@ -10,12 +10,17 @@ repository = "https://github.com/CraftSpider/enrede"
 
 [features]
 defaults = ["std"]
+# Allow dependency on `std`
 std = ["alloc"]
+# Allow dependency on `alloc`
 alloc = []
+# Add support for using encodings as `Distribution` to generate characters valid for that encoding.
+rand = ["dep:rand"]
 
 [dependencies]
 bytemuck = { version = "1.16", features = ["derive", "must_cast"] }
 arrayvec = "0.7"
+rand = { version = "0.8", optional = true, default-features = false }
 
 [dev-dependencies]
 criterion = "0.5"
