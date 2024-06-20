@@ -507,6 +507,7 @@ mod tests {
     use super::*;
     #[cfg(feature = "alloc")]
     use crate::encoding::{Ascii, Win1252};
+    use alloc::vec::Vec;
 
     #[test]
     fn test_chars() {

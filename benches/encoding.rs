@@ -1,8 +1,8 @@
+use core::hint::black_box;
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 use enrede::encoding::{Ascii, Utf16};
 use enrede::{Encoding, String};
 use rand::{thread_rng, Rng};
-use std::hint::black_box;
 
 mod utils;
 
