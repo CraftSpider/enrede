@@ -51,7 +51,7 @@ impl ArrayLike for u8 {
 ///
 /// This trait is sealed, and multiple internal items are unstable, preventing downstream
 /// implementations. If you want an encoding not currently supported, please open an issue.
-pub trait Encoding: Sealed {
+pub trait Encoding: Default + Sealed {
     #[doc(hidden)]
     const REPLACEMENT: char;
     #[doc(hidden)]

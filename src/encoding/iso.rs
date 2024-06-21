@@ -24,6 +24,7 @@ const DECODE_MAP_8859_15: [char; 96] = [
 
 /// The [ISO/IEC 8859-2](https://en.wikipedia.org/wiki/ISO/IEC_8859-2) encoding.
 #[non_exhaustive]
+#[derive(Default)]
 pub struct Iso8859_2;
 
 impl Sealed for Iso8859_2 {}
@@ -98,6 +99,7 @@ impl Distribution<char> for Iso8859_2 {
 
 /// The [ISO/IEC 8859-15](https://en.wikipedia.org/wiki/ISO/IEC_8859-15) encoding.
 #[non_exhaustive]
+#[derive(Default)]
 pub struct Iso8859_15;
 
 impl Sealed for Iso8859_15 {}

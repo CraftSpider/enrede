@@ -21,6 +21,7 @@ const DECODE_MAP_1252: [char; 32] = [
 
 /// The [Windows-1251](https://en.wikipedia.org/wiki/Windows-1251) encoding.
 #[non_exhaustive]
+#[derive(Default)]
 pub struct Win1251;
 
 impl Sealed for Win1251 {}
@@ -70,7 +71,6 @@ impl Encoding for Win1251 {
     }
 
     fn char_len(c: char) -> usize {
-        // TODO: This is wrong
         if c as u32 == 0x98 || (c as u32) > 255 {
             0
         } else {
@@ -97,6 +97,7 @@ impl Distribution<char> for Win1251 {
 
 /// The [Windows-1252](https://en.wikipedia.org/wiki/Windows-1252) encoding.
 #[non_exhaustive]
+#[derive(Default)]
 pub struct Win1252;
 
 impl Sealed for Win1252 {}
@@ -112,7 +113,7 @@ impl Encoding for Win1252 {
 
     fn validate(bytes: &[u8]) -> Result<(), ValidateError> {
         bytes.iter().enumerate().try_for_each(|(idx, b)| {
-            if [0x82, 0x8D, 0x8F, 0x90, 0x9D].contains(b) {
+            if [0x81, 0x8D, 0x8F, 0x90, 0x9D].contains(b) {
                 Err(ValidateError {
                     valid_up_to: idx,
                     error_len: Some(1),
@@ -146,8 +147,7 @@ impl Encoding for Win1252 {
     }
 
     fn char_len(c: char) -> usize {
-        // TODO: This is wrong
-        if [0x82, 0x8D, 0x8F, 0x90, 0x9D].contains(&(c as u32)) || c as u32 > 255 {
+        if [0x81, 0x8D, 0x8F, 0x90, 0x9D].contains(&(c as u32)) || c as u32 > 255 {
             0
         } else {
             1
@@ -163,13 +163,15 @@ impl Distribution<char> for Win1252 {
         let c = rng.gen_range(0u8..251);
         if c <= 0x7F {
             char::from(c)
+        } else if c >= (0xA0 - 5) {
+            char::from(c + 5)
         } else {
             let offset = match c {
-                ..=0x80 => 0,
-                ..=0x8C => 1,
-                ..=0x8E => 2,
-                ..=0x9C => 4,
-                ..=0xFF => 5,
+                0x80 => 0,
+                ..=0x8B => 1,
+                ..=0x8C => 2,
+                ..=0x98 => 4,
+                _ => 5,
             };
             DECODE_MAP_1252[(c + offset - 0x80) as usize]
         }
@@ -179,6 +181,7 @@ impl Distribution<char> for Win1252 {
 /// The [Windows-1252](https://en.wikipedia.org/wiki/Windows-1252) encoding, with empty spots
 /// replaced by the corresponding C1 control codes.
 #[non_exhaustive]
+#[derive(Default)]
 pub struct Win1252Loose;
 
 impl Sealed for Win1252Loose {}
@@ -238,6 +241,8 @@ impl Distribution<char> for Win1252Loose {
         let c = rng.gen::<u8>();
         if c <= 0x7F {
             char::from(c)
+        } else if c >= (0xA0 - 5) {
+            char::from(c + 5)
         } else {
             DECODE_MAP_1252[(c - 0x80) as usize]
         }

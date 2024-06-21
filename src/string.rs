@@ -101,11 +101,7 @@ impl<E: Encoding> String<E> {
     /// for the current encoding.
     pub fn push(&mut self, c: char) {
         self.try_push(c).unwrap_or_else(|_| {
-            panic!(
-                "Invalid character '{:?}' for encoding {}",
-                c,
-                E::shorthand()
-            )
+            panic!("Invalid character {:?} for encoding {}", c, E::shorthand())
         });
     }
 

@@ -1,118 +1,94 @@
+use byte_unit::{Byte, Unit};
 use core::hint::black_box;
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
-use enrede::encoding::{Ascii, Utf16};
+use enrede::encoding::{
+    ArrayLike, Ascii, ExtendedAscii, Iso8859_15, Iso8859_2, Utf16BE, Utf16LE, Utf32, Win1251,
+    Win1252, Win1252Loose,
+};
 use enrede::{Encoding, String};
+use rand::distributions::Distribution;
 use rand::{thread_rng, Rng};
 
 mod utils;
 
-// fn validate_encoding<E: Encoding>(c: &mut Criterion) {
-//     c.bench_function(&format!("{}::validate", E::shorthand()), |b| {
-//         b.iter_batched_ref(
-//             || {
-//                 let mut data: Vec<u8> = Vec::new();
-//                 while data.len() < 1024 {
-//                     data.push(todo!(
-//                         "Way to get a random character valid for the encoding?"
-//                     ));
-//                 }
-//                 data
-//             },
-//             |data| E::validate(black_box(data)).unwrap(),
-//             BatchSize::SmallInput,
-//         )
-//     });
-// }
+const KILOBYTE: Byte = match Byte::from_u64_with_unit(1, Unit::KiB) {
+    Some(b) => b,
+    None => panic!(),
+};
+const MEGABYTE: Byte = match Byte::from_u64_with_unit(1, Unit::MiB) {
+    Some(b) => b,
+    None => panic!(),
+};
 
-pub fn validate_ascii(c: &mut Criterion) {
-    c.bench_function("Ascii::validate", |b| {
+fn bench_validate<E: Encoding + Distribution<char>>(c: &mut Criterion, bytes: Byte) {
+    let mut rng = thread_rng();
+    c.bench_function(&format!("{}::validate ({})", E::shorthand(), bytes), |b| {
         b.iter_batched_ref(
             || {
                 let mut data: Vec<u8> = Vec::new();
-                for _ in 0..1024 {
-                    data.push(thread_rng().gen_range(0..128))
+                while (data.len() as u64) < bytes.as_u64() {
+                    let char = rng.sample(E::default());
+                    let bytes = E::encode_char(char).unwrap();
+                    data.extend(bytes.slice());
                 }
                 data
             },
-            |data| Ascii::validate(black_box(data)).unwrap(),
+            |data| E::validate(black_box(data)).unwrap(),
             BatchSize::SmallInput,
         )
     });
 }
 
-pub fn encode_ascii(c: &mut Criterion) {
+fn bench_encode<E: Encoding + Distribution<char>>(c: &mut Criterion) {
     let mut rng = thread_rng();
-    c.bench_function("Ascii::encode", |b| {
+    c.bench_function(&format!("{}::encode", E::shorthand()), |b| {
         b.iter_batched(
-            || char::from(rng.gen_range(0..128)),
-            |char| Ascii::encode(black_box(char), black_box(&mut [0])).unwrap(),
+            || rng.sample(E::default()),
+            |char| E::encode(black_box(char), black_box(&mut [0, 0, 0, 0])).unwrap(),
             BatchSize::SmallInput,
         )
     });
 }
 
-pub fn decode_ascii(c: &mut Criterion) {
+fn bench_decode<E: Encoding + Distribution<char>>(c: &mut Criterion) {
     let mut rng = thread_rng();
-    c.bench_function("Ascii::decode", |b| {
+    c.bench_function(&format!("{}::decode", E::shorthand()), |b| {
         b.iter_batched_ref(
             || {
-                let mut str = String::<Ascii>::new();
-                str.push(char::from(rng.gen_range(0u8..128)));
+                let mut str = String::<E>::new();
+                str.push(rng.sample(E::default()));
                 str
             },
             |str: &mut String<_>| {
-                Ascii::decode_char(black_box(str));
+                E::decode_char(black_box(str));
             },
             BatchSize::SmallInput,
         )
     });
 }
 
-pub fn validate_utf16(c: &mut Criterion) {
-    c.bench_function("Utf16::validate", |b| {
-        b.iter_batched_ref(
-            || {
-                let mut data: Vec<u8> = Vec::new();
-                while data.len() < 1024 {
-                    data.extend(Utf16::encode_char(rand::random::<char>()).unwrap());
-                }
-                data
-            },
-            |data| Utf16::validate(black_box(data)).unwrap(),
-            BatchSize::SmallInput,
-        )
-    });
+pub fn bench_encoding<E: Encoding + Distribution<char>>(c: &mut Criterion) {
+    bench_validate::<E>(c, KILOBYTE);
+    bench_validate::<E>(c, MEGABYTE);
+    bench_encode::<E>(c);
+    bench_decode::<E>(c);
 }
 
-pub fn encode_utf16(c: &mut Criterion) {
-    let mut rng = thread_rng();
-    c.bench_function("Utf16::encode", |b| {
-        b.iter_batched(
-            || rng.gen::<char>(),
-            |char| Utf16::encode(black_box(char), black_box(&mut [0, 0, 0, 0])).unwrap(),
-            BatchSize::SmallInput,
-        )
-    });
+pub fn bench_all(c: &mut Criterion) {
+    bench_encoding::<Ascii>(c);
+    bench_encoding::<ExtendedAscii>(c);
+
+    bench_encoding::<Utf16LE>(c);
+    bench_encoding::<Utf16BE>(c);
+    bench_encoding::<Utf32>(c);
+
+    bench_encoding::<Win1251>(c);
+    bench_encoding::<Win1252>(c);
+    bench_encoding::<Win1252Loose>(c);
+
+    bench_encoding::<Iso8859_2>(c);
+    bench_encoding::<Iso8859_15>(c);
 }
 
-pub fn decode_utf16(c: &mut Criterion) {
-    let mut rng = thread_rng();
-    c.bench_function("Utf16::decode", |b| {
-        b.iter_batched_ref(
-            || {
-                let mut str = String::<Utf16>::new();
-                str.push(rng.gen::<char>());
-                str
-            },
-            |str: &mut String<_>| {
-                Utf16::decode_char(black_box(str));
-            },
-            BatchSize::SmallInput,
-        )
-    });
-}
-
-criterion_group!(name = validate; config = utils::criterion(); targets = validate_ascii, validate_utf16);
-criterion_group!(name = encode; config = utils::criterion(); targets = encode_ascii, encode_utf16);
-criterion_group!(name = decode; config = utils::criterion(); targets = decode_ascii, decode_utf16);
-criterion_main!(validate, encode, decode);
+criterion_group!(name = benches; config = utils::criterion(); targets = bench_all);
+criterion_main!(benches);

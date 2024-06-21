@@ -7,6 +7,7 @@ use rand::{distributions::Distribution, Rng};
 
 /// The [UTF-8](https://en.wikipedia.org/wiki/UTF-8) encoding
 #[non_exhaustive]
+#[derive(Default)]
 pub struct Utf8;
 
 impl Sealed for Utf8 {}
@@ -94,6 +95,7 @@ macro_rules! utf16_impl {
         #[doc = $docname]
         #[doc = "](https://en.wikipedia.org/wiki/UTF-16#Byte-order_encoding_schemes) encoding"]
         #[non_exhaustive]
+        #[derive(Default)]
         pub struct $name;
 
         impl Sealed for $name {}
@@ -225,6 +227,7 @@ utf16_impl!(
 
 /// The [UTF-32](https://en.wikipedia.org/wiki/UTF-32) encoding
 #[non_exhaustive]
+#[derive(Default)]
 pub struct Utf32;
 
 impl Sealed for Utf32 {}

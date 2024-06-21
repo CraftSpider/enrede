@@ -13,6 +13,14 @@
 - Mutable `CStr` creation methods
   - `from_bytes_with_nul_mut`
   - `from_bytes_til_nul_mut`
+- `rand` feature, allows encodings to also function as distributions to generate
+  characters valid for that encoding.
+- Added benchmarks
+
+### Fixed
+
+- Win1252 encoding validation mistakenly banned 0x82 instead of 0x81, this has been fixed
+-
 
 ### Changed
 

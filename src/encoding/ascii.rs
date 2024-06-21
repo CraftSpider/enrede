@@ -6,6 +6,7 @@ use rand::{distributions::Distribution, Rng};
 
 /// The [ASCII](https://en.wikipedia.org/wiki/ASCII) encoding.
 #[non_exhaustive]
+#[derive(Default)]
 pub struct Ascii;
 
 impl Sealed for Ascii {}
@@ -69,6 +70,7 @@ impl Distribution<char> for Ascii {
 /// not assign any particular meaning to values beyond 127 - it simply round-trips them as `char`s
 /// of that exact codepoint value.
 #[non_exhaustive]
+#[derive(Default)]
 pub struct ExtendedAscii;
 
 impl Sealed for ExtendedAscii {}

@@ -25,6 +25,7 @@ rand = { version = "0.8", optional = true, default-features = false }
 [dev-dependencies]
 criterion = "0.5"
 rand = "0.8"
+byte-unit = "5.1"
 
 [target.'cfg(unix)'.dev-dependencies]
 pprof = { version = "0.13", features = ["criterion", "flamegraph"] }
@@ -35,4 +36,4 @@ debug = true
 [[bench]]
 name = "encoding"
 harness = false
-required-features = ["alloc"]
+required-features = ["alloc", "rand"]
