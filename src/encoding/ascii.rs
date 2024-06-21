@@ -60,6 +60,7 @@ impl Encoding for Ascii {
 
 impl NullTerminable for Ascii {}
 
+#[cfg(feature = "rand")]
 impl Distribution<char> for Ascii {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> char {
         char::from(rng.gen_range(0..128))
@@ -117,6 +118,7 @@ impl NullTerminable for ExtendedAscii {}
 
 impl AlwaysValid for ExtendedAscii {}
 
+#[cfg(feature = "rand")]
 impl Distribution<char> for ExtendedAscii {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> char {
         char::from(rng.gen::<u8>())
