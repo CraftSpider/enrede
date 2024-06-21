@@ -1,6 +1,6 @@
 #![doc = include_str!("../README.md")]
 #![warn(elided_lifetimes_in_paths, missing_docs, clippy::cargo)]
-// #![no_std]
+#![no_std]
 
 #[cfg(any(feature = "alloc", test))]
 extern crate alloc;
