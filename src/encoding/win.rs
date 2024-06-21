@@ -1,7 +1,7 @@
-#![cfg(feature = "rand")]
 use crate::encoding::sealed::Sealed;
 use crate::encoding::{AlwaysValid, Encoding, NullTerminable, ValidateError};
 use crate::str::Str;
+#[cfg(feature = "rand")]
 use rand::{distributions::Distribution, Rng};
 
 const DECODE_MAP_1251: [char; 128] = [
