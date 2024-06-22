@@ -81,6 +81,7 @@ impl Encoding for Win1251 {
 
 impl NullTerminable for Win1251 {}
 
+#[cfg(feature = "rand")]
 impl Distribution<char> for Win1251 {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> char {
         // Number of characters
@@ -157,6 +158,7 @@ impl Encoding for Win1252 {
 
 impl NullTerminable for Win1252 {}
 
+#[cfg(feature = "rand")]
 impl Distribution<char> for Win1252 {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> char {
         // Number of characters
@@ -235,6 +237,7 @@ impl NullTerminable for Win1252Loose {}
 
 impl AlwaysValid for Win1252Loose {}
 
+#[cfg(feature = "rand")]
 impl Distribution<char> for Win1252Loose {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> char {
         // Number of characters
