@@ -14,6 +14,11 @@ use core::marker::PhantomData;
 use core::ops::{Bound, Index, RangeBounds};
 use core::slice::SliceIndex;
 use core::{fmt, mem, ptr, slice};
+#[cfg(feature = "serde")]
+use serde::{
+    de::{self, Unexpected},
+    Deserialize, Deserializer, Serialize, Serializer,
+};
 
 #[cfg(feature = "alloc")]
 use crate::encoding::RecodeCause;
@@ -479,6 +484,33 @@ impl<E: Encoding> Hash for Str<E> {
 impl<E: Encoding> AsRef<[u8]> for Str<E> {
     fn as_ref(&self) -> &[u8] {
         self.as_bytes()
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<E: Encoding> Serialize for Str<E> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        <[u8]>::serialize(self.as_bytes(), serializer)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de, E: Encoding> Deserialize<'de> for &'de Str<E> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let bytes = <&'de [u8]>::deserialize(deserializer)?;
+        Str::from_bytes(bytes).map_err(|_| {
+            #[cfg(feature = "alloc")]
+            let msg = &*alloc::format!("a valid string for the {} encoding", E::shorthand());
+            #[cfg(not(feature = "alloc"))]
+            let msg = "a valid string for this encoding";
+            de::Error::invalid_value(Unexpected::Bytes(bytes), &msg)
+        })
     }
 }
 

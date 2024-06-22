@@ -8,6 +8,11 @@ use core::fmt;
 use core::hash::{Hash, Hasher};
 use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut};
+#[cfg(feature = "serde")]
+use serde::{
+    de::{self, Unexpected},
+    Deserialize, Deserializer, Serialize, Serializer,
+};
 
 use crate::cstring::{CString, NulError};
 use crate::encoding::{AlwaysValid, ArrayLike, Encoding, NullTerminable, Utf8, ValidateError};
@@ -240,6 +245,33 @@ impl<E: NullTerminable> From<CString<E>> for String<E> {
         // SAFETY: A `CString` is guaranteed to contain a valid `String`, but with a terminating
         //         null. `into_bytes` removes the null, so just leaves the valid string.
         unsafe { String::from_bytes_unchecked(value.into_bytes()) }
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<E: Encoding> Serialize for String<E> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        <[u8]>::serialize(self.as_bytes(), serializer)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de, E: Encoding> Deserialize<'de> for String<E> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let bytes = Vec::deserialize(deserializer)?;
+        match E::validate(&bytes) {
+            Ok(()) => Ok(unsafe { String::from_bytes_unchecked(bytes) }),
+            Err(_) => {
+                let msg = &*alloc::format!("a valid string for the {} encoding", E::shorthand());
+                Err(de::Error::invalid_value(Unexpected::Bytes(&bytes), &msg))
+            }
+        }
     }
 }
 
