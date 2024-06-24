@@ -11,11 +11,13 @@ use core::slice;
 
 mod ascii;
 mod iso;
+mod jis;
 mod utf;
 mod win;
 
 pub use ascii::*;
 pub use iso::*;
+pub use jis::*;
 pub use utf::*;
 pub use win::*;
 
@@ -108,8 +110,14 @@ pub trait Encoding: Default + Sealed {
     #[doc(hidden)]
     fn decode_char(str: &Str<Self>) -> (char, &Str<Self>);
 
+    /// Determine whether the provided index is a character boundary in the provided string.
+    /// Implementations may generally assume idx is in-bounds, though this is not a safety
+    /// precondition.
     #[doc(hidden)]
     fn char_bound(str: &Str<Self>, idx: usize) -> bool;
+
+    /// Get the length of the given character in this encoding. Characters not supported by the
+    /// encoding are expected to return 0 currently, this may change in the future.
     #[doc(hidden)]
     fn char_len(c: char) -> usize;
 }
