@@ -90,7 +90,7 @@ pub fn bench_all(c: &mut Criterion) {
     bench_encoding::<Iso8859_15>(c);
 
     bench_encoding::<JisX0201>(c);
-    // bench_encoding::<JisX0208>(c);
+    bench_encoding::<JisX0208>(c);
 }
 
 criterion_group!(name = benches; config = utils::criterion(); targets = bench_all);

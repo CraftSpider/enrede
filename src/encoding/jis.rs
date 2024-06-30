@@ -14,6 +14,7 @@ const DECODE_MAP_0201: [char; 63] = [
     'ﾚ', 'ﾛ', 'ﾜ', 'ﾝ', 'ﾞ', 'ﾟ',
 ];
 
+/// The [JIS X 0201](https://en.wikipedia.org/wiki/JIS_X_0201) encoding.
 #[derive(Debug, Default)]
 #[non_exhaustive]
 pub struct JisX0201;
@@ -91,6 +92,7 @@ impl Distribution<char> for JisX0201 {
     }
 }
 
+/// The [JIS X 0208](https://en.wikipedia.org/wiki/JIS_X_0208) encoding.
 #[derive(Debug, Default)]
 #[non_exhaustive]
 pub struct JisX0208;
@@ -109,13 +111,14 @@ impl Encoding for JisX0208 {
     fn validate(bytes: &[u8]) -> Result<(), ValidateError> {
         let mut row = 0;
         for (idx, b) in bytes.iter().enumerate() {
-            if row == 0 && *b >= 0x80 {
-                if (0x29..0x30).contains(b) {
-                    return Err(ValidateError {
-                        valid_up_to: idx,
-                        error_len: Some(1),
-                    });
-                } else if (0x75..0x7F).contains(b) || (0x80..).contains(b) {
+            if *b >= 0x80 {
+                return Err(ValidateError {
+                    valid_up_to: idx,
+                    error_len: Some(1),
+                });
+            } else if row == 0 {
+                // Tables with no valid characters - fast path
+                if ((0x29..0x30).contains(b) && *b != 0x2D) || (0x75..0x7F).contains(b) {
                     return Err(ValidateError {
                         valid_up_to: idx,
                         error_len: Some(2),
@@ -126,7 +129,8 @@ impl Encoding for JisX0208 {
                 // Characters in range 0..0x20 are ASCII control codes
             } else if row != 0 {
                 if !(0x21..0x7F).contains(b)
-                    || x0208_tables::DECODE_MAP_0208[row as usize][(*b - 0x21) as usize] == '�'
+                    || x0208_tables::DECODE_MAP_0208[(row - 1) as usize][(*b - 0x21) as usize]
+                        == '�'
                 {
                     return Err(ValidateError {
                         valid_up_to: idx - 1,
@@ -143,22 +147,18 @@ impl Encoding for JisX0208 {
         if c as u32 <= 0x20 || c as u32 == 0x7F {
             Some(ArrayVec::from_iter([c as u8]))
         } else {
-            let (row, col) =
-                x0208_tables::DECODE_MAP_0208
-                    .iter()
-                    .enumerate()
-                    .find_map(|(row_idx, row)| {
-                        let col = row.iter().position(|v| *v == c)? as u8;
-                        Some((row_idx as u8, col))
-                    })?;
-            Some(ArrayVec::from([row + 0x21, col + 0x21]))
+            let idx = x0208_tables::ENCODE_MAP_0208
+                .binary_search_by(|(c2, _)| c2.cmp(&c))
+                .ok()?;
+            let (_, (row, col)) = x0208_tables::ENCODE_MAP_0208[idx];
+            Some(ArrayVec::from([row as u8 + 0x21, col as u8 + 0x21]))
         }
     }
 
     fn decode_char(str: &Str<Self>) -> (char, &Str<Self>) {
         let bytes = str.as_bytes();
         let first = bytes[0];
-        if (..0x21).contains(&first) {
+        if (..0x21).contains(&first) || first == 0x7F {
             (char::from(first), &str[1..])
         } else {
             let second = bytes[1];
@@ -204,42 +204,51 @@ impl Encoding for JisX0208 {
 #[cfg(feature = "rand")]
 impl Distribution<char> for JisX0208 {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> char {
-        todo!()
+        let c = rng.gen_range(0..x0208_tables::RAND_MAP_0208.len() + 22);
+        if c <= 21 {
+            if c == 21 {
+                '\x7F'
+            } else {
+                char::from(c as u8)
+            }
+        } else {
+            x0208_tables::RAND_MAP_0208[c - 22]
+        }
     }
 }
 
-#[derive(Debug, Default)]
-#[non_exhaustive]
-pub struct ShiftJIS;
-
-impl Sealed for ShiftJIS {}
-
-impl Encoding for ShiftJIS {
-    const REPLACEMENT: char = '?';
-    const MAX_LEN: usize = 0;
-    type Bytes = ArrayVec<u8, 2>;
-
-    fn shorthand() -> &'static str {
-        "shiftjis"
-    }
-
-    fn validate(bytes: &[u8]) -> Result<(), ValidateError> {
-        todo!()
-    }
-
-    fn encode_char(c: char) -> Option<Self::Bytes> {
-        todo!()
-    }
-
-    fn decode_char(str: &Str<Self>) -> (char, &Str<Self>) {
-        todo!()
-    }
-
-    fn char_bound(str: &Str<Self>, idx: usize) -> bool {
-        todo!()
-    }
-
-    fn char_len(c: char) -> usize {
-        todo!()
-    }
-}
+// #[derive(Debug, Default)]
+// #[non_exhaustive]
+// pub struct ShiftJIS;
+//
+// impl Sealed for ShiftJIS {}
+//
+// impl Encoding for ShiftJIS {
+//     const REPLACEMENT: char = '?';
+//     const MAX_LEN: usize = 0;
+//     type Bytes = ArrayVec<u8, 2>;
+//
+//     fn shorthand() -> &'static str {
+//         "shiftjis"
+//     }
+//
+//     fn validate(bytes: &[u8]) -> Result<(), ValidateError> {
+//         todo!()
+//     }
+//
+//     fn encode_char(c: char) -> Option<Self::Bytes> {
+//         todo!()
+//     }
+//
+//     fn decode_char(str: &Str<Self>) -> (char, &Str<Self>) {
+//         todo!()
+//     }
+//
+//     fn char_bound(str: &Str<Self>, idx: usize) -> bool {
+//         todo!()
+//     }
+//
+//     fn char_len(c: char) -> usize {
+//         todo!()
+//     }
+// }
