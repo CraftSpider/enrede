@@ -1,6 +1,10 @@
 use crate::encoding::sealed::Sealed;
-use crate::encoding::{AlwaysValid, ValidateError};
+use crate::encoding::{AlwaysValid, NullTerminable, ValidateError};
 use crate::{Encoding, Str};
+#[cfg(feature = "rand")]
+use rand::distributions::Distribution;
+#[cfg(feature = "rand")]
+use rand::Rng;
 
 const DECODE_MAP_ROMAN: [char; 128] = [
     'Ä', 'Å', 'Ç', 'É', 'Ñ', 'Ö', 'Ü', 'á', 'à', 'â', 'ä', 'ã', 'å', 'ç', 'é', 'è', 'ê', 'ë', 'í',
@@ -64,4 +68,19 @@ impl Encoding for MacRoman {
     }
 }
 
+impl NullTerminable for MacRoman {}
+
 impl AlwaysValid for MacRoman {}
+
+#[cfg(feature = "rand")]
+impl Distribution<char> for MacRoman {
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> char {
+        // Number of characters
+        let c = rng.gen::<u8>();
+        if c <= 0x7F {
+            char::from(c)
+        } else {
+            DECODE_MAP_ROMAN[(c - 0x80) as usize]
+        }
+    }
+}
