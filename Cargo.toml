@@ -40,3 +40,6 @@ debug = true
 name = "encoding"
 harness = false
 required-features = ["alloc", "rand"]
+
+[package.metadata.docs.rs]
+all-features = true

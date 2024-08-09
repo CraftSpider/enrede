@@ -135,6 +135,22 @@ impl<E: Encoding + NullTerminable> CString<E> {
     pub fn into_bytes_with_nul(self) -> Vec<u8> {
         self.1
     }
+
+    /// Convert an [`std::CString`](std::ffi::String) directly into a [`String<E>`]
+    pub fn from_std(value: alloc::ffi::CString) -> Result<Self, ValidateError> {
+        let bytes = value.into_bytes();
+        E::validate(&bytes)?;
+        // SAFETY: An std CString is guaranteed to contain no internal null bytes
+        //         Bytes have been validated
+        Ok(unsafe { CString::from_vec_unchecked(bytes) })
+    }
+
+    /// Convert a [`CString<E>`] directly into an [`std::CString`](std::ffi::CString)
+    pub fn into_std(self) -> alloc::ffi::CString {
+        let bytes = self.into_bytes();
+        // SAFETY: A valid CString is guaranteed to contain no internal null bytes
+        unsafe { alloc::ffi::CString::from_vec_unchecked(bytes) }
+    }
 }
 
 impl<E: NullTerminable + AlwaysValid> CString<E> {
@@ -243,10 +259,12 @@ impl<E: NullTerminable> TryFrom<alloc::ffi::CString> for CString<E> {
     type Error = ValidateError;
 
     fn try_from(value: alloc::ffi::CString) -> Result<Self, Self::Error> {
-        let bytes = value.into_bytes();
-        E::validate(&bytes)?;
-        // SAFETY: An std CString is guaranteed to contain no internal null bytes
-        //         Bytes have been validated
-        Ok(unsafe { CString::from_vec_unchecked(bytes) })
+        Self::from_std(value)
+    }
+}
+
+impl<E: NullTerminable> From<CString<E>> for alloc::ffi::CString {
+    fn from(value: CString<E>) -> Self {
+        value.into_std()
     }
 }
