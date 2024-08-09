@@ -242,10 +242,8 @@ impl Distribution<char> for Win1252Loose {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> char {
         // Number of characters
         let c = rng.gen::<u8>();
-        if c <= 0x7F {
+        if c <= 0x7F || c >= 0xA0 {
             char::from(c)
-        } else if c >= (0xA0 - 5) {
-            char::from(c + 5)
         } else {
             DECODE_MAP_1252[(c - 0x80) as usize]
         }
