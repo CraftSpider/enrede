@@ -12,12 +12,14 @@ use core::slice;
 mod ascii;
 mod iso;
 mod jis;
+mod mac;
 mod utf;
 mod win;
 
 pub use ascii::*;
 pub use iso::*;
 pub use jis::*;
+pub use mac::*;
 pub use utf::*;
 pub use win::*;
 

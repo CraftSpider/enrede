@@ -74,7 +74,7 @@ impl Encoding for JisX0201 {
     }
 
     fn char_len(c: char) -> usize {
-        if (0x20..0x80).contains(&(c as u32)) || (0xA1..0xE0).contains(&(c as u32)) {
+        if (0x20..0x80).contains(&(c as u32)) || DECODE_MAP_0201.contains(&c) {
             1
         } else {
             0

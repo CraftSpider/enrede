@@ -16,11 +16,15 @@
 - `rand` feature, allows encodings to also function as distributions to generate
   characters valid for that encoding.
 - Added benchmarks
+- New Encodings:
+  - JIS X 0201
+  - JIS X 0208
+  - Mac Roman
 
 ### Fixed
 
 - Win1252 encoding validation mistakenly banned 0x82 instead of 0x81, this has been fixed
--
+- Win1251, Win1252, and JisX0201 had incorrect `char_len` implementations. They will now return the correct values.
 
 ### Changed
 

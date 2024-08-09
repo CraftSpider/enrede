@@ -71,10 +71,10 @@ impl Encoding for Win1251 {
     }
 
     fn char_len(c: char) -> usize {
-        if c as u32 == 0x98 || (c as u32) > 255 {
-            0
-        } else {
+        if (c as u32) < 0x80 || DECODE_MAP_1251.contains(&c) {
             1
+        } else {
+            0
         }
     }
 }
@@ -148,10 +148,10 @@ impl Encoding for Win1252 {
     }
 
     fn char_len(c: char) -> usize {
-        if [0x81, 0x8D, 0x8F, 0x90, 0x9D].contains(&(c as u32)) || c as u32 > 255 {
-            0
-        } else {
+        if (c as u32) < 0x80 || DECODE_MAP_1252.contains(&c) {
             1
+        } else {
+            0
         }
     }
 }
@@ -291,6 +291,14 @@ mod tests {
     }
 
     #[test]
+    fn test_char_len_win1251() {
+        let c = 'ф';
+        assert_eq!(Win1251::char_len(c), 1);
+        let c = '𐐷';
+        assert_eq!(Win1251::char_len(c), 0);
+    }
+
+    #[test]
     fn test_validate_win1252() {
         assert!(Win1252::validate(b"01\xD5\xFF").is_ok());
         assert_eq!(
@@ -322,5 +330,13 @@ mod tests {
         assert_eq!(c, 'ÿ');
         let (c, _) = Win1252::decode_char(str);
         assert_eq!(c, '\0');
+    }
+
+    #[test]
+    fn test_char_len_win1252() {
+        let c = '€';
+        assert_eq!(Win1252::char_len(c), 1);
+        let c = '𐐷';
+        assert_eq!(Win1252::char_len(c), 0);
     }
 }
