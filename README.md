@@ -19,6 +19,7 @@ The name, `enrede`, is a double wordplay - **En**code/**Re**code/**De**code, and
   but generic over encoding.
 - `Encoding` trait with support for lower-level direct encoding/recoding into slices
 - `no_std` support
+- `rand::Distribution` impls for encodings, allowing easy generation of valid characters for an encoding
 
 ## Planned Features
 
@@ -32,7 +33,6 @@ These features are not yet supported, but are planned for a future version:
   - Big5
   - ISO/IEC 8859-1
 - More methods on strings and C-strings
-- Performance benchmarking and guaranteed high-throughput
 
 ## `no_std` Support
 
