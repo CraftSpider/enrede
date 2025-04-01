@@ -2,6 +2,7 @@
 
 use alloc::vec::Vec;
 use core::borrow::{Borrow, BorrowMut};
+use core::error::Error;
 use core::fmt;
 use core::hash::{Hash, Hasher};
 use core::marker::PhantomData;
@@ -25,11 +26,36 @@ pub enum CStringErrorCause {
     },
 }
 
+impl CStringErrorCause {
+    fn write_cause(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CStringErrorCause::Invalid(_) => write!(f, "validation failed"),
+            CStringErrorCause::HasNull { .. } => write!(f, "null byte encountered"),
+        }
+    }
+}
+
 /// An error encountered while creating a new [`CString`] from a container of bytes
 #[derive(Debug, PartialEq)]
 pub struct CStringError {
     bytes: Vec<u8>,
     cause: CStringErrorCause,
+}
+
+impl fmt::Display for CStringError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Error while creating `CString`: ")?;
+        self.cause.write_cause(f)
+    }
+}
+
+impl Error for CStringError {
+    fn cause(&self) -> Option<&dyn Error> {
+        match &self.cause {
+            CStringErrorCause::Invalid(err) => Some(err),
+            CStringErrorCause::HasNull { .. } => None,
+        }
+    }
 }
 
 impl CStringError {
@@ -63,6 +89,17 @@ impl NulError {
         self.bytes
     }
 }
+
+impl fmt::Display for NulError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Error while creating `CString` from `String`: null byte encountered"
+        )
+    }
+}
+
+impl Error for NulError {}
 
 /// A type representing an owned, generically-encoded C-string. This means the string contains a
 /// single trailing null byte, with no other null bytes internally.

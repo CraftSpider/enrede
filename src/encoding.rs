@@ -7,7 +7,8 @@
 
 use crate::str::Str;
 use arrayvec::ArrayVec;
-use core::slice;
+use core::error::Error;
+use core::{fmt, slice};
 
 mod ascii;
 mod iso;
@@ -161,6 +162,14 @@ impl ValidateError {
     }
 }
 
+impl fmt::Display for ValidateError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Error while validating data")
+    }
+}
+
+impl Error for ValidateError {}
+
 /// An error while encoding a `char` directly into a buffer
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
@@ -173,6 +182,20 @@ pub enum EncodeError {
     /// The provided character isn't valid for the output encoding
     InvalidChar,
 }
+
+impl fmt::Display for EncodeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Error while encoding data: ")?;
+        match self {
+            EncodeError::NeedSpace { len } => {
+                write!(f, "insufficient space, need {len} bytes for next character")
+            }
+            EncodeError::InvalidChar => write!(f, "invalid character for output encoding"),
+        }
+    }
+}
+
+impl Error for EncodeError {}
 
 /// The cause of a recoding error.
 #[derive(Clone, Debug, PartialEq)]
@@ -190,6 +213,19 @@ pub enum RecodeCause {
         /// The length of this character in the input
         len: usize,
     },
+}
+
+impl RecodeCause {
+    pub(crate) fn write_cause(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RecodeCause::NeedSpace { .. } => {
+                write!(f, "insufficient space")
+            }
+            RecodeCause::InvalidChar { char, .. } => {
+                write!(f, "invalid character for output encoding '{char}'")
+            }
+        }
+    }
 }
 
 /// An error encountered while encoding a string into another format.
@@ -218,3 +254,12 @@ impl RecodeError {
         &self.cause
     }
 }
+
+impl fmt::Display for RecodeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Error while recoding data: ")?;
+        self.cause.write_cause(f)
+    }
+}
+
+impl Error for RecodeError {}

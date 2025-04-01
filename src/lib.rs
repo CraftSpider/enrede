@@ -9,7 +9,6 @@ pub mod cstr;
 #[cfg(feature = "alloc")]
 pub mod cstring;
 pub mod encoding;
-pub(crate) mod err;
 pub mod str;
 #[cfg(feature = "alloc")]
 pub mod string;

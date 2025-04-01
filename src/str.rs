@@ -8,6 +8,7 @@ use alloc::borrow::ToOwned;
 use alloc::vec;
 use bytemuck::must_cast_slice as cast_slice;
 use core::cmp::Ordering;
+use core::error::Error;
 use core::fmt::Write;
 use core::hash::{Hash, Hasher};
 use core::marker::PhantomData;
@@ -23,13 +24,110 @@ use serde::{
 #[cfg(feature = "alloc")]
 use crate::encoding::RecodeCause;
 use crate::encoding::{AlwaysValid, Encoding, Utf16, Utf32, Utf8, ValidateError};
-pub use crate::err::{RecodeError, RecodeIntoError};
 #[cfg(feature = "alloc")]
 use crate::string::String;
 
 mod iter;
 
+use crate::encoding;
 pub use iter::{CharIndices, Chars};
+
+/// Error encountered while re-encoding a [`Str`] or [`CStr`](crate::CStr) into another
+/// format
+#[derive(Clone, Debug, PartialEq)]
+pub struct RecodeError {
+    valid_up_to: usize,
+    char: char,
+    char_len: u8,
+}
+
+impl RecodeError {
+    /// The length of valid data in the input before the error was encountered. Calling
+    /// [`recode`](Str::recode) again on the input sliced down to this length will succeed.
+    pub fn valid_up_to(&self) -> usize {
+        self.valid_up_to
+    }
+
+    /// The character encountered that caused re-encoding to fail. This character most likely isn't
+    /// supported by the new encoding.
+    pub fn char(&self) -> char {
+        self.char
+    }
+
+    /// The length of the character in the input encoding. Skipping this many bytes forwards from
+    /// [`valid_up_to`](Self::valid_up_to) and trying again will avoid this particular error
+    /// character (though recoding may fail again immediately due to another invalid character).
+    pub fn char_len(&self) -> usize {
+        self.char_len as usize
+    }
+}
+
+impl fmt::Display for RecodeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Error while recoding `Str`: invalid character for output encoding '{}'",
+            self.char
+        )
+    }
+}
+
+impl Error for RecodeError {}
+
+/// Error encountered while re-encoding a [`Str`](Str) or [`CStr`](crate::CStr) into another
+/// format in a pre-allocated buffer
+#[derive(Clone, PartialEq)]
+pub struct RecodeIntoError<'a, E: Encoding> {
+    input_used: usize,
+    str: &'a Str<E>,
+    cause: RecodeCause,
+}
+
+impl<'a, E: Encoding> RecodeIntoError<'a, E> {
+    fn from_recode(err: encoding::RecodeError, str: &'a Str<E>) -> Self {
+        RecodeIntoError {
+            input_used: err.input_used(),
+            str,
+            cause: err.cause().clone(),
+        }
+    }
+
+    /// The length of valid data in the input before the error was encountered. Calling
+    /// [`recode_into`](Str::recode_into) again on the input sliced down to this length will succeed.
+    pub fn valid_up_to(&self) -> usize {
+        self.input_used
+    }
+
+    /// The portion of the buffer with valid data written into it, as a [`Str`] in the desired
+    /// encoding.
+    pub fn output_valid(&self) -> &'a Str<E> {
+        self.str
+    }
+
+    /// The reason encoding stopped. See [`RecodeCause`] for more details on possible reasons.
+    pub fn cause(&self) -> &RecodeCause {
+        &self.cause
+    }
+}
+
+impl<E: Encoding> fmt::Debug for RecodeIntoError<'_, E> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("RecodeIntoError")
+            .field("input_used", &self.input_used)
+            .field("str", &self.str)
+            .field("cause", &self.cause)
+            .finish()
+    }
+}
+
+impl<E: Encoding> fmt::Display for RecodeIntoError<'_, E> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Error while recoding `Str` into buffer: ")?;
+        self.cause.write_cause(f)
+    }
+}
+
+impl<E: Encoding> Error for RecodeIntoError<'_, E> {}
 
 /// Implementation of a generically encoded [`str`] type. This type is similar to the standard
 /// library [`str`] type in many ways, but instead of having a fixed UTF-8 encoding scheme, it uses

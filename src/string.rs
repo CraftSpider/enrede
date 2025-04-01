@@ -4,6 +4,7 @@
 use alloc::borrow::{Borrow, BorrowMut, Cow, ToOwned};
 use alloc::string::String as StdString;
 use alloc::vec::Vec;
+use core::error::Error;
 use core::fmt;
 use core::hash::{Hash, Hasher};
 use core::marker::PhantomData;
@@ -27,6 +28,14 @@ use chunks::EncodedChunks;
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct InvalidChar;
+
+impl fmt::Display for InvalidChar {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Invalid character for output encoding")
+    }
+}
+
+impl Error for InvalidChar {}
 
 /// Implementation of a generically encoded [`std::String`](std::string::String) type. This type is
 /// similar to the standard library [`String`](std::string::String) type in many ways, but instead

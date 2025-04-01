@@ -3,8 +3,14 @@
 //! See also the [`CStr<E>`] type.
 
 #[cfg(feature = "alloc")]
+use crate::cstring::CString;
+use crate::encoding::{AlwaysValid, Encoding, NullTerminable, ValidateError};
+use crate::str::Str;
+use crate::utils::RangeOpen;
+#[cfg(feature = "alloc")]
 use alloc::borrow::ToOwned;
 use core::borrow::Borrow;
+use core::error::Error;
 use core::ffi::c_char;
 use core::hash::{Hash, Hasher};
 use core::marker::PhantomData;
@@ -13,15 +19,18 @@ use core::ops::{Bound, Deref, Index};
 use core::slice::SliceIndex;
 use core::{fmt, ptr};
 
-#[cfg(feature = "alloc")]
-use crate::cstring::CString;
-use crate::encoding::{AlwaysValid, Encoding, NullTerminable, ValidateError};
-use crate::str::Str;
-use crate::utils::RangeOpen;
-
 /// Error encountered when creating a [`CStr`] with no terminating null byte.
 #[non_exhaustive]
+#[derive(Debug)]
 pub struct MissingNull;
+
+impl fmt::Display for MissingNull {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Slice missing null byte")
+    }
+}
+
+impl Error for MissingNull {}
 
 /// Error encountered while creating a [`CStr`] from bytes until a null byte is encountered
 #[derive(Debug, PartialEq)]
@@ -30,6 +39,25 @@ pub enum FromBytesTilNulError {
     Invalid(ValidateError),
     /// The input doesn't contain any null bytes
     MissingNull,
+}
+
+impl fmt::Display for FromBytesTilNulError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Error creating `CStr` til null: ")?;
+        match self {
+            FromBytesTilNulError::Invalid(_) => write!(f, "validation failed"),
+            FromBytesTilNulError::MissingNull => write!(f, "missing null byte"),
+        }
+    }
+}
+
+impl Error for FromBytesTilNulError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            FromBytesTilNulError::Invalid(validate) => Some(validate),
+            FromBytesTilNulError::MissingNull => None,
+        }
+    }
 }
 
 /// Error encountered while creating a [`CStr`] from bytes with a single terminating null byte
@@ -46,6 +74,27 @@ pub enum FromBytesWithNulError {
     MissingNull,
 }
 
+impl fmt::Display for FromBytesWithNulError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Error creating `CStr` with null: ")?;
+        match self {
+            FromBytesWithNulError::Invalid(_) => write!(f, "validation failed"),
+            FromBytesWithNulError::HasNull { .. } => write!(f, "null byte not at end of slice"),
+            FromBytesWithNulError::MissingNull => write!(f, "missing null byte"),
+        }
+    }
+}
+
+impl Error for FromBytesWithNulError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            FromBytesWithNulError::Invalid(validate) => Some(validate),
+            FromBytesWithNulError::HasNull { .. } => None,
+            FromBytesWithNulError::MissingNull => None,
+        }
+    }
+}
+
 /// Error encountered while creating a [`CStr`] from an [`AlwaysValid`] encoding.
 #[derive(Debug, PartialEq)]
 pub enum FromBytesWithNulValidError {
@@ -57,6 +106,20 @@ pub enum FromBytesWithNulValidError {
     /// The input doesn't contain any null bytes
     MissingNull,
 }
+
+impl fmt::Display for FromBytesWithNulValidError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Error creating `CStr` with null: ")?;
+        match self {
+            FromBytesWithNulValidError::HasNull { .. } => {
+                write!(f, "null byte not at end of slice")
+            }
+            FromBytesWithNulValidError::MissingNull => write!(f, "missing null byte"),
+        }
+    }
+}
+
+impl Error for FromBytesWithNulValidError {}
 
 /// A C-string slice, representing an encoded string with a single null (or zero) byte at the end.
 /// This is normally represented in C as a `char*`, and is the most common form of string value
