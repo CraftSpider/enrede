@@ -23,7 +23,7 @@ use serde::{
 #[cfg(feature = "alloc")]
 use crate::encoding::RecodeCause;
 use crate::encoding::{AlwaysValid, Encoding, Utf16, Utf32, Utf8, ValidateError};
-pub use crate::err::RecodeError;
+pub use crate::err::{RecodeError, RecodeIntoError};
 #[cfg(feature = "alloc")]
 use crate::string::String;
 
@@ -242,6 +242,26 @@ impl<E: Encoding> Str<E> {
         } else {
             None
         }
+    }
+
+    /// Get this `Str` in a different [`Encoding`]. This method writes the new string into the
+    /// provided buffer, and returns the portion of the buffer containing the string as a new `Str`.
+    pub fn recode_into<'a, E2: Encoding>(
+        &self,
+        buffer: &'a mut [u8],
+    ) -> Result<&'a Str<E2>, RecodeIntoError<'a, E2>> {
+        E2::recode(self, buffer)
+            .map(|len| {
+                // SAFETY: Value written into `out` by `recode` is guaranteed valid in encoding
+                //         E2.
+                unsafe { Str::from_bytes_unchecked(&buffer[..len]) }
+            })
+            .map_err(|err| {
+                // SAFETY: Value written into `out` by `recode` is guaranteed valid in encoding
+                //         E2, up to output_valid.
+                let str = unsafe { Str::from_bytes_unchecked(&buffer[..err.output_valid()]) };
+                RecodeIntoError::from_recode(err, str)
+            })
     }
 
     /// Get this `Str` in a different [`Encoding`]. This method allocates a new [`String`] with the
