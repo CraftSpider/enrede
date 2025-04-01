@@ -4,6 +4,7 @@
 
 ### Added
 
+- Error types now implement `core::error::Error`
 - `Str::recode_into` - non-allocating variant of recode, returns the `Str` written
 
 # [0.1.2] - 2024-08-08
