@@ -226,7 +226,7 @@ impl Sealed for ShiftJIS {}
 
 impl Encoding for ShiftJIS {
     const REPLACEMENT: char = '?';
-    const MAX_LEN: usize = 0;
+    const MAX_LEN: usize = 2;
     type Bytes = ArrayVec<u8, 2>;
 
     fn shorthand() -> &'static str {
