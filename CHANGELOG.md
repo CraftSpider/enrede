@@ -6,6 +6,9 @@
 
 - Error types now implement `core::error::Error`
 - `Str::recode_into` - non-allocating variant of recode, returns the `Str` written
+- `Str::get_unchecked{,_mut}` - unchecked variants of `Str::get{,_mut}`
+- New Encodings:
+  - Shift-JIS
 
 # [0.1.2] - 2024-08-08
 

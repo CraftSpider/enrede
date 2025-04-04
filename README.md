@@ -29,7 +29,6 @@ These features are not yet supported, but are planned for a future version:
 - Extended methods for encodings following certain properties:
   - Constant length encodings
 - More encodings
-  - Shift-JIS
   - Big5
   - ISO/IEC 8859-1
 - More methods on strings and C-strings
