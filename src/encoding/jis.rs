@@ -1,5 +1,5 @@
 use crate::encoding::sealed::Sealed;
-use crate::encoding::ValidateError;
+use crate::encoding::{NullTerminable, ValidateError};
 use crate::{Encoding, Str};
 use arrayvec::ArrayVec;
 #[cfg(feature = "rand")]
@@ -81,6 +81,8 @@ impl Encoding for JisX0201 {
         }
     }
 }
+
+impl NullTerminable for JisX0201 {}
 
 #[cfg(feature = "rand")]
 impl Distribution<char> for JisX0201 {
@@ -200,6 +202,8 @@ impl Encoding for JisX0208 {
         }
     }
 }
+
+impl NullTerminable for JisX0208 {}
 
 #[cfg(feature = "rand")]
 impl Distribution<char> for JisX0208 {
@@ -373,6 +377,8 @@ impl Encoding for ShiftJIS {
         }
     }
 }
+
+impl NullTerminable for ShiftJIS {}
 
 #[cfg(feature = "rand")]
 impl Distribution<char> for ShiftJIS {
