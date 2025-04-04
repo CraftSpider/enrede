@@ -253,6 +253,20 @@ impl<E: Encoding> Str<E> {
         Some(unsafe { Str::from_bytes_unchecked(self.as_bytes().get(idx)?) })
     }
 
+    /// Return a subslice of this `Str`, without bound checks.
+    ///
+    /// # Safety
+    ///
+    /// - The caller must ensure the range indices are in-bounds of the string byte length
+    /// - The caller must ensure neither the range indices do not fall in the middle of a character
+    pub unsafe fn get_unchecked<R>(&self, idx: R) -> &Self
+    where
+        R: RangeBounds<usize> + SliceIndex<[u8], Output = [u8]>,
+    {
+        // SAFETY: Delegated to caller
+        unsafe { Str::from_bytes_unchecked(self.as_bytes().get_unchecked(idx)) }
+    }
+
     /// Return a mutable subslice of this `Str`. This is a non-panicking alternative to indexing,
     /// returning [`None`] whenever indexing would panic.
     pub fn get_mut<R>(&mut self, idx: R) -> Option<&mut Self>
@@ -263,6 +277,20 @@ impl<E: Encoding> Str<E> {
         // SAFETY: The provided range has been validated as landing on character boundaries.
         //         Our internal bytes are guaranteed valid for the encoding.
         Some(unsafe { Str::from_bytes_unchecked_mut(self.1.get_mut(idx)?) })
+    }
+
+    /// Return a mutable subslice of this `Str`, without bound checks.
+    ///
+    /// # Safety
+    ///
+    /// - The caller must ensure the range indices are in-bounds of the string byte length
+    /// - The caller must ensure neither the range indices do not fall in the middle of a character
+    pub unsafe fn get_unchecked_mut<R>(&mut self, idx: R) -> &mut Self
+    where
+        R: RangeBounds<usize> + SliceIndex<[u8], Output = [u8]>,
+    {
+        // SAFETY: Delegated to caller
+        unsafe { Str::from_bytes_unchecked_mut(self.as_bytes_mut().get_unchecked_mut(idx)) }
     }
 
     /// Check whether the byte at `idx` is on a character boundary - IE is the first byte in a code
