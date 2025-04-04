@@ -30,7 +30,6 @@ These features are not yet supported, but are planned for a future version:
   - Constant length encodings
 - More encodings
   - Big5
-  - ISO/IEC 8859-1
 - More methods on strings and C-strings
 
 ## `no_std` Support

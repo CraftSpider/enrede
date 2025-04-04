@@ -9,6 +9,7 @@
 - `Str::get_unchecked{,_mut}` - unchecked variants of `Str::get{,_mut}`
 - New Encodings:
   - Shift-JIS
+  - ISO/IEC 8859-1
 
 # [0.1.2] - 2024-08-08
 
