@@ -149,10 +149,7 @@ impl Encoding for JisX0208 {
         if c as u32 <= 0x20 || c as u32 == 0x7F {
             Some(ArrayVec::from_iter([c as u8]))
         } else {
-            let idx = x0208_tables::ENCODE_MAP_0208
-                .binary_search_by(|(c2, _)| c2.cmp(&c))
-                .ok()?;
-            let (_, (row, col)) = x0208_tables::ENCODE_MAP_0208[idx];
+            let (row, col) = x0208_tables::ENCODE_MAP_0208[&c];
             Some(ArrayVec::from([row as u8 + 0x21, col as u8 + 0x21]))
         }
     }
@@ -290,10 +287,7 @@ impl Encoding for ShiftJIS {
             Some(c) => return Some(ArrayVec::from_iter([c])),
             None => (),
         }
-        let idx = x0208_tables::ENCODE_MAP_0208
-            .binary_search_by(|(c2, _)| c2.cmp(&c))
-            .ok()?;
-        let (_, (row, col)) = x0208_tables::ENCODE_MAP_0208[idx];
+        let (row, col) = x0208_tables::ENCODE_MAP_0208[&c];
         let row = row + 0x21;
         let row_e = if row <= 0x5E {
             ((row + 1) / 2) + 112
