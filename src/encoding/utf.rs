@@ -190,7 +190,7 @@ macro_rules! utf16_impl {
             }
 
             fn char_bound(str: &Str<Self>, idx: usize) -> bool {
-                idx % 2 == 0 && !(0xD8..0xE0).contains(&str.as_bytes()[idx + $idx_add])
+                idx % 2 == 0 && !(0xDC..0xE0).contains(&str.as_bytes()[idx + $idx_add])
             }
 
             fn char_len(c: char) -> usize {
@@ -212,7 +212,7 @@ utf16_impl!(
     "utf16be",
     from_be_bytes,
     to_be_bytes,
-    1,
+    0,
     "UTF-16BE",
 );
 
@@ -221,7 +221,7 @@ utf16_impl!(
     "utf16le",
     from_le_bytes,
     to_le_bytes,
-    0,
+    1,
     "UTF-16LE",
 );
 
@@ -357,6 +357,21 @@ mod tests {
         assert_eq!(c, 'b');
     }
 
+    #[test]
+    fn test_char_boundary_utf16le() {
+        let str = unsafe { Str::from_bytes_unchecked(b"A\0\x01\xD8\x37\xDCb\0") };
+        assert!(Utf16LE::char_bound(str, 2));
+        assert!(!Utf16LE::char_bound(str, 4));
+        assert!(Utf16LE::char_bound(str, 6));
+
+        let str =
+            unsafe { Str::from_bytes_unchecked(&[174, 95, 223, 142, 99, 107, 209, 158, 212, 154]) };
+        assert!(!Utf16LE::char_bound(str, 1));
+        assert!(Utf16LE::char_bound(str, 2));
+        assert!(!Utf16LE::char_bound(str, 3));
+        assert!(Utf16LE::char_bound(str, 4));
+    }
+
     #[allow(clippy::octal_escapes)]
     #[test]
     fn test_validate_utf16_be() {
@@ -417,6 +432,21 @@ mod tests {
         assert_eq!(c, '𐐷');
         let (c, _) = Utf16BE::decode_char(str);
         assert_eq!(c, 'b');
+    }
+
+    #[test]
+    fn test_char_boundary_utf16be() {
+        let str = unsafe { Str::from_bytes_unchecked(b"\0A\xD8\x01\xDC\x37\0b") };
+        assert!(Utf16BE::char_bound(str, 2));
+        assert!(!Utf16BE::char_bound(str, 4));
+        assert!(Utf16BE::char_bound(str, 6));
+
+        let str =
+            unsafe { Str::from_bytes_unchecked(&[95, 174, 142, 223, 107, 99, 158, 209, 154, 212]) };
+        assert!(!Utf16BE::char_bound(str, 1));
+        assert!(Utf16BE::char_bound(str, 2));
+        assert!(!Utf16BE::char_bound(str, 3));
+        assert!(Utf16BE::char_bound(str, 4));
     }
 
     #[test]
