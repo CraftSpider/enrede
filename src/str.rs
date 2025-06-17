@@ -548,7 +548,7 @@ impl Str<Utf32> {
         unsafe { Self::from_bytes_unchecked(cast_slice(str)) }
     }
 
-    /// Attemp to convert a [`Str<Utf32>`] directly into a [`&[char]`]. This will fail if the `Str`
+    /// Attempt to convert a [`Str<Utf32>`] directly into a [`&[char]`]. This will fail if the `Str`
     /// is not sufficiently aligned for a `char`.
     pub fn try_chars(&self) -> Option<&[char]> {
         let len = self.1.len();
