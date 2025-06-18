@@ -21,9 +21,7 @@ use serde::{
     Deserialize, Deserializer, Serialize, Serializer,
 };
 
-#[cfg(feature = "alloc")]
-use crate::encoding::RecodeCause;
-use crate::encoding::{AlwaysValid, Encoding, Utf16, Utf32, Utf8, ValidateError};
+use crate::encoding::{AlwaysValid, Encoding, RecodeCause, Utf16, Utf32, Utf8, ValidateError};
 #[cfg(feature = "alloc")]
 use crate::string::String;
 

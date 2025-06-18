@@ -7755,6 +7755,7 @@ pub const ENCODE_MAP_0208: phf::Map<char, (usize, usize)> = phf::phf_map! {
 };
 
 /// Map of all characters in X0208 tables, for use in the random character generation algorithm.
+#[cfg(feature = "rand")]
 pub const RAND_MAP_0208: &[char; 6966] = &[
     '　', '、', '。', ',', '.', '・', ':', ';', '?', '!', '゛', '゜', '´', '`', '¨', '^', '‾', '_',
     'ヽ', 'ヾ', 'ゝ', 'ゞ', '〃', '仝', '々', '〆', '〇', 'ー', '—', '‐', '/', '\\', '〜', '‖',
