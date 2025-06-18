@@ -20,6 +20,7 @@
 - [Perf] Use a perfect hash function for character encoding
 - `String::from_bytes` and `CString::from_std` now return `OwnValidateError`, which provides access to the
   original bytes.
+- Split `Utf32` into `Utf32LE` and `Utf32BE`. `Utf32` is now an alias to the native endian variant.
 
 # [0.1.2] - 2024-08-08
 
