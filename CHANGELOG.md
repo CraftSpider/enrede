@@ -18,6 +18,8 @@
 ### Changed
 
 - [Perf] Use a perfect hash function for character encoding
+- `String::from_bytes` and `CString::from_std` now return `OwnValidateError`, which provides access to the
+  original bytes.
 
 # [0.1.2] - 2024-08-08
 
