@@ -11,6 +11,14 @@
   - Shift-JIS
   - ISO/IEC 8859-1
 
+### Fixed
+
+- UTF-16 BE/LE character boundary detection
+
+### Changed
+
+- [Perf] Use a perfect hash function for character encoding
+
 # [0.1.2] - 2024-08-08
 
 ### Added
