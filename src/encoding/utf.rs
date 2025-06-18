@@ -225,75 +225,103 @@ utf16_impl!(
     "UTF-16LE",
 );
 
-/// The [UTF-32](https://en.wikipedia.org/wiki/UTF-32) encoding
-#[non_exhaustive]
-#[derive(Default)]
-pub struct Utf32;
+macro_rules! utf32_impl {
+    (
+        $name:ident,
+        $shorthand:literal,
+        $method_from:ident,
+        $method_to:ident,
+        $docname:literal,
+    ) => {
+        #[doc = "The ["]
+        #[doc = $docname]
+        #[doc = "](https://en.wikipedia.org/wiki/UTF-32) encoding"]
+        #[non_exhaustive]
+        #[derive(Default)]
+        pub struct $name;
 
-impl Sealed for Utf32 {}
+        impl Sealed for $name {}
 
-impl Encoding for Utf32 {
-    const REPLACEMENT: char = '\u{FFFD}';
-    const MAX_LEN: usize = 4;
-    type Bytes = [u8; 4];
+        impl Encoding for $name {
+            const REPLACEMENT: char = '\u{FFFD}';
+            const MAX_LEN: usize = 4;
+            type Bytes = [u8; 4];
 
-    fn shorthand() -> &'static str {
-        "utf32"
-    }
-
-    fn validate(bytes: &[u8]) -> Result<(), ValidateError> {
-        for (idx, chunk) in bytes.chunks(4).enumerate() {
-            if chunk.len() != 4 {
-                return Err(ValidateError {
-                    valid_up_to: idx * 4,
-                    error_len: None,
-                });
+            fn shorthand() -> &'static str {
+                $shorthand
             }
 
-            let c = u32::from_ne_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
-            if (0xD800..0xE000).contains(&c) || (0x0011_0000..).contains(&c) {
-                return Err(ValidateError {
-                    valid_up_to: idx * 4,
-                    error_len: Some(4),
-                });
+            fn validate(bytes: &[u8]) -> Result<(), ValidateError> {
+                extern crate std;
+                std::dbg!(bytes);
+                for (idx, chunk) in bytes.chunks(4).enumerate() {
+                    if chunk.len() != 4 {
+                        return Err(ValidateError {
+                            valid_up_to: idx * 4,
+                            error_len: None,
+                        });
+                    }
+
+                    let c = u32::$method_from([chunk[0], chunk[1], chunk[2], chunk[3]]);
+                    std::eprintln!("Val: {c:X}");
+                    if (0xD800..0xE000).contains(&c) || (0x0011_0000..).contains(&c) {
+                        return Err(ValidateError {
+                            valid_up_to: idx * 4,
+                            error_len: Some(4),
+                        });
+                    }
+                }
+
+                Ok(())
+            }
+
+            fn encode_char(c: char) -> Option<Self::Bytes> {
+                Some((c as u32).$method_to())
+            }
+
+            fn decode_char(str: &Str<Self>) -> (char, &Str<Self>) {
+                let bytes = str.as_bytes();
+                let c = u32::$method_from([bytes[0], bytes[1], bytes[2], bytes[3]]);
+                // SAFETY: Str<Utf32> is guaranteed to contain valid `char` values
+                let c = unsafe { char::from_u32_unchecked(c) };
+                (c, &str[4..])
+            }
+
+            fn char_bound(_: &Str<Self>, idx: usize) -> bool {
+                idx % 4 == 0
+            }
+
+            fn char_len(_: char) -> usize {
+                4
             }
         }
 
-        Ok(())
-    }
-
-    fn encode_char(c: char) -> Option<Self::Bytes> {
-        Some((c as u32).to_le_bytes())
-    }
-
-    fn decode_char(str: &Str<Self>) -> (char, &Str<Self>) {
-        let bytes = str.as_bytes();
-        let c = u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
-        // SAFETY: Str<Utf32> is guaranteed to contain valid `char` values
-        let c = unsafe { char::from_u32_unchecked(c) };
-        (c, &str[4..])
-    }
-
-    fn char_bound(_: &Str<Self>, idx: usize) -> bool {
-        idx % 4 == 0
-    }
-
-    fn char_len(_: char) -> usize {
-        4
-    }
+        #[cfg(feature = "rand")]
+        impl Distribution<char> for $name {
+            fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> char {
+                rng.random::<char>()
+            }
+        }
+    };
 }
 
-#[cfg(feature = "rand")]
-impl Distribution<char> for Utf32 {
-    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> char {
-        rng.random::<char>()
-    }
-}
+utf32_impl!(Utf32BE, "utf32be", from_be_bytes, to_be_bytes, "UTF-32BE",);
+utf32_impl!(Utf32LE, "utf32le", from_le_bytes, to_le_bytes, "UTF-32LE",);
+
+/// The [UTF-32](https://en.wikipedia.org/wiki/UTF-32) encoding
+#[cfg(target_endian = "little")]
+pub type Utf32 = Utf32LE;
+
+/// The [UTF-32](https://en.wikipedia.org/wiki/UTF-32) encoding
+#[cfg(target_endian = "big")]
+pub type Utf32 = Utf32BE;
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytemuck::must_cast_slice as cast_slice;
+    use alloc::vec::Vec;
+
+    extern crate alloc;
 
     #[allow(clippy::octal_escapes)]
     #[test]
@@ -449,20 +477,30 @@ mod tests {
         assert!(Utf16BE::char_bound(str, 4));
     }
 
+    macro_rules! utf32le {
+        ($str:literal) => {
+            $str.chars()
+                .flat_map(|c| (c as u32).to_le_bytes())
+                .collect::<Vec<_>>()
+        };
+    }
+
     #[test]
-    fn test_validate_utf32() {
-        assert!(Utf32::validate(cast_slice(&['a', 'b', 'c', '1', '2', '3'])).is_ok());
-        assert!(Utf32::validate(cast_slice(&['A', ' ', 'y', 'e', 'e', ':', ' ', '𐐷'])).is_ok());
+    fn test_validate_utf32_le() {
+        assert!(Utf32LE::validate(&utf32le!("abc123")).is_ok());
+        assert!(Utf32LE::validate(&utf32le!("A yee: 𐐷")).is_ok());
         // Invalid (surrogate)
         assert_eq!(
-            Utf32::validate(cast_slice(&['a' as u32, 0xD800, 'b' as u32,])),
+            Utf32LE::validate(&[
+                0x61, 0x00, 0x00, 0x00, 0x00, 0xD8, 0x00, 0x00, 0x62, 0x00, 0x00, 0x00,
+            ]),
             Err(ValidateError {
                 valid_up_to: 4,
                 error_len: Some(4),
             })
         );
         assert_eq!(
-            Utf32::validate(cast_slice(&[0x0011_0000])),
+            Utf32LE::validate(&[0x00, 0x00, 0x11, 0x00]),
             Err(ValidateError {
                 valid_up_to: 0,
                 error_len: Some(4),
@@ -471,19 +509,69 @@ mod tests {
     }
 
     #[test]
-    fn test_encode_utf32() {
-        assert_eq!(Utf32::encode_char('A'), Some([b'A', 0, 0, 0]));
-        assert_eq!(Utf32::encode_char('𐐷'), Some([0x37, 0x04, 0x01, 0x00]));
+    fn test_encode_utf32_le() {
+        assert_eq!(Utf32LE::encode_char('A'), Some([b'A', 0, 0, 0]));
+        assert_eq!(Utf32LE::encode_char('𐐷'), Some([0x37, 0x04, 0x01, 0x00]));
     }
 
     #[test]
-    fn test_decode_utf32() {
-        let str = Str::from_chars(&['A', '𐐷', 'b']);
-        let (c, str) = Utf32::decode_char(str);
+    fn test_decode_utf32_le() {
+        let bytes = utf32le!("A𐐷b");
+        let str = Str::from_bytes(&bytes).unwrap();
+        let (c, str) = Utf32LE::decode_char(str);
         assert_eq!(c, 'A');
-        let (c, str) = Utf32::decode_char(str);
+        let (c, str) = Utf32LE::decode_char(str);
         assert_eq!(c, '𐐷');
-        let (c, _) = Utf32::decode_char(str);
+        let (c, _) = Utf32LE::decode_char(str);
+        assert_eq!(c, 'b');
+    }
+
+    macro_rules! utf32be {
+        ($str:literal) => {
+            $str.chars()
+                .flat_map(|c| (c as u32).to_be_bytes())
+                .collect::<Vec<_>>()
+        };
+    }
+
+    #[test]
+    fn test_validate_utf32_be() {
+        assert!(Utf32BE::validate(&utf32be!("abc123")).is_ok());
+        assert!(Utf32BE::validate(&utf32be!("A yee: 𐐷")).is_ok());
+        // Invalid (surrogate)
+        assert_eq!(
+            Utf32BE::validate(&[
+                0x00, 0x00, 0x00, 0x61, 0x00, 0x00, 0xD8, 0x00, 0x00, 0x00, 0x00, 0x62,
+            ]),
+            Err(ValidateError {
+                valid_up_to: 4,
+                error_len: Some(4),
+            })
+        );
+        assert_eq!(
+            Utf32BE::validate(&[0x00, 0x11, 0x00, 0x00]),
+            Err(ValidateError {
+                valid_up_to: 0,
+                error_len: Some(4),
+            })
+        );
+    }
+
+    #[test]
+    fn test_encode_utf32_be() {
+        assert_eq!(Utf32BE::encode_char('A'), Some([0, 0, 0, b'A']));
+        assert_eq!(Utf32BE::encode_char('𐐷'), Some([0x00, 0x01, 0x04, 0x37]));
+    }
+
+    #[test]
+    fn test_decode_utf32_be() {
+        let bytes = utf32be!("A𐐷b");
+        let str = Str::from_bytes(&bytes).unwrap();
+        let (c, str) = Utf32BE::decode_char(str);
+        assert_eq!(c, 'A');
+        let (c, str) = Utf32BE::decode_char(str);
+        assert_eq!(c, '𐐷');
+        let (c, _) = Utf32BE::decode_char(str);
         assert_eq!(c, 'b');
     }
 }
