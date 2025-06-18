@@ -2,7 +2,7 @@ use crate::encoding::sealed::Sealed;
 use crate::encoding::{AlwaysValid, NullTerminable, ValidateError};
 use crate::{Encoding, Str};
 #[cfg(feature = "rand")]
-use rand::distributions::Distribution;
+use rand::distr::Distribution;
 #[cfg(feature = "rand")]
 use rand::Rng;
 
@@ -76,7 +76,7 @@ impl AlwaysValid for MacRoman {}
 impl Distribution<char> for MacRoman {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> char {
         // Number of characters
-        let c = rng.gen::<u8>();
+        let c = rng.random::<u8>();
         if c <= 0x7F {
             char::from(c)
         } else {

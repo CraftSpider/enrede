@@ -3,7 +3,7 @@ use crate::encoding::{NullTerminable, ValidateError};
 use crate::{Encoding, Str};
 use arrayvec::ArrayVec;
 #[cfg(feature = "rand")]
-use rand::{distributions::Distribution, Rng};
+use rand::{distr::Distribution, Rng};
 
 mod x0208_tables;
 
@@ -88,7 +88,7 @@ impl NullTerminable for JisX0201 {}
 impl Distribution<char> for JisX0201 {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> char {
         // Number of JIS 0201 characters
-        let c = rng.gen_range(0..159);
+        let c = rng.random_range(0..159);
         let c = if c < 0x60 { c + 0x20 } else { c + 0x41 };
         Self::decode_char(unsafe { Str::from_bytes_unchecked(&[c]) }).0
     }
@@ -205,7 +205,7 @@ impl NullTerminable for JisX0208 {}
 #[cfg(feature = "rand")]
 impl Distribution<char> for JisX0208 {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> char {
-        let c = rng.gen_range(0..x0208_tables::RAND_MAP_0208.len() + 22);
+        let c = rng.random_range(0..x0208_tables::RAND_MAP_0208.len() + 22);
         if c <= 21 {
             if c == 21 {
                 '\x7F'
@@ -377,7 +377,7 @@ impl NullTerminable for ShiftJIS {}
 #[cfg(feature = "rand")]
 impl Distribution<char> for ShiftJIS {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> char {
-        let c = rng.gen_range(0..(x0208_tables::RAND_MAP_0208.len() + 158));
+        let c = rng.random_range(0..(x0208_tables::RAND_MAP_0208.len() + 158));
         if c <= 158 {
             let c = if c < 0x60 { c + 0x20 } else { c + 0x41 };
             JisX0201::decode_char(unsafe { Str::from_bytes_unchecked(&[c as u8]) }).0

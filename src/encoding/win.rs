@@ -2,7 +2,7 @@ use crate::encoding::sealed::Sealed;
 use crate::encoding::{AlwaysValid, Encoding, NullTerminable, ValidateError};
 use crate::str::Str;
 #[cfg(feature = "rand")]
-use rand::{distributions::Distribution, Rng};
+use rand::{distr::Distribution, Rng};
 
 const ENCODE_MAP_1251: phf::Map<char, u8> = phf::phf_map! {
     'Ђ' => 0, 'Ѓ' => 1, '‚' => 2, 'ѓ' => 3, '„' => 4, '…' => 5, '†' => 6, '‡' => 7, '€' => 8,
@@ -103,7 +103,7 @@ impl NullTerminable for Win1251 {}
 impl Distribution<char> for Win1251 {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> char {
         // Number of characters
-        let c = rng.gen_range(0u8..255);
+        let c = rng.random_range(0u8..255);
         if c <= 0x7F {
             char::from(c)
         } else if c < 0x98 {
@@ -180,7 +180,7 @@ impl NullTerminable for Win1252 {}
 impl Distribution<char> for Win1252 {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> char {
         // Number of characters
-        let c = rng.gen_range(0u8..251);
+        let c = rng.random_range(0u8..251);
         if c <= 0x7F {
             char::from(c)
         } else if c >= (0xA0 - 5) {
@@ -259,7 +259,7 @@ impl AlwaysValid for Win1252Loose {}
 impl Distribution<char> for Win1252Loose {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> char {
         // Number of characters
-        let c = rng.gen::<u8>();
+        let c = rng.random::<u8>();
         if c <= 0x7F || c >= 0xA0 {
             char::from(c)
         } else {

@@ -2,7 +2,7 @@ use crate::encoding::sealed::Sealed;
 use crate::encoding::{NullTerminable, ValidateError};
 use crate::{Encoding, Str};
 #[cfg(feature = "rand")]
-use rand::{distributions::Distribution, Rng};
+use rand::{distr::Distribution, Rng};
 
 const DECODE_MAP_8859_1: [char; 96] = [
     ' ', '¡', '¢', '£', '¤', '¥', '¦', '§', '¨', '©', 'ª', '«', '¬', '\u{AD}', '®', '¯', '°', '±',
@@ -106,7 +106,7 @@ impl NullTerminable for Iso8859_1 {}
 impl Distribution<char> for Iso8859_1 {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> char {
         // Total number of characters in encoding
-        let c = rng.gen_range(0u8..191);
+        let c = rng.random_range(0u8..191);
         if c < 95 {
             char::from(c + 0x20)
         } else {
@@ -181,7 +181,7 @@ impl NullTerminable for Iso8859_2 {}
 impl Distribution<char> for Iso8859_2 {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> char {
         // Total number of characters in encoding
-        let c = rng.gen_range(0u8..191);
+        let c = rng.random_range(0u8..191);
         if c < 95 {
             char::from(c + 0x20)
         } else {
@@ -258,7 +258,7 @@ impl NullTerminable for Iso8859_3 {}
 impl Distribution<char> for Iso8859_3 {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> char {
         // Total number of characters in encoding
-        let c = rng.gen_range(0u8..184);
+        let c = rng.random_range(0u8..184);
         if c < 95 {
             char::from(c + 0x20)
         } else {
@@ -343,7 +343,7 @@ impl NullTerminable for Iso8859_15 {}
 impl Distribution<char> for Iso8859_15 {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> char {
         // Total number of characters in encoding
-        let c = rng.gen_range(0u8..191);
+        let c = rng.random_range(0u8..191);
         if c < 95 {
             char::from(c + 0x20)
         } else {

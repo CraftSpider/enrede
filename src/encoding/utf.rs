@@ -3,7 +3,7 @@ use crate::encoding::{Encoding, NullTerminable, ValidateError};
 use crate::str::Str;
 use arrayvec::ArrayVec;
 #[cfg(feature = "rand")]
-use rand::{distributions::Distribution, Rng};
+use rand::{distr::Distribution, Rng};
 
 /// The [UTF-8](https://en.wikipedia.org/wiki/UTF-8) encoding
 #[non_exhaustive]
@@ -57,7 +57,7 @@ impl NullTerminable for Utf8 {}
 #[cfg(feature = "rand")]
 impl Distribution<char> for Utf8 {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> char {
-        rng.gen::<char>()
+        rng.random::<char>()
     }
 }
 
@@ -201,7 +201,7 @@ macro_rules! utf16_impl {
         #[cfg(feature = "rand")]
         impl Distribution<char> for $name {
             fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> char {
-                rng.gen::<char>()
+                rng.random::<char>()
             }
         }
     };
@@ -286,7 +286,7 @@ impl Encoding for Utf32 {
 #[cfg(feature = "rand")]
 impl Distribution<char> for Utf32 {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> char {
-        rng.gen::<char>()
+        rng.random::<char>()
     }
 }
 

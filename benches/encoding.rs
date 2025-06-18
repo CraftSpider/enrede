@@ -6,8 +6,8 @@ use enrede::encoding::{
     JisX0208, MacRoman, ShiftJIS, Utf16BE, Utf16LE, Utf32, Win1251, Win1252, Win1252Loose,
 };
 use enrede::{Encoding, String};
-use rand::distributions::Distribution;
-use rand::{thread_rng, Rng};
+use rand::distr::Distribution;
+use rand::{rng, Rng};
 
 mod utils;
 
@@ -21,7 +21,7 @@ const MEGABYTE: Byte = match Byte::from_u64_with_unit(1, Unit::MiB) {
 };
 
 fn bench_validate<E: Encoding + Distribution<char>>(c: &mut Criterion, bytes: Byte) {
-    let mut rng = thread_rng();
+    let mut rng = rng();
     c.bench_function(&format!("{}::validate ({})", E::shorthand(), bytes), |b| {
         b.iter_batched_ref(
             || {
@@ -40,7 +40,7 @@ fn bench_validate<E: Encoding + Distribution<char>>(c: &mut Criterion, bytes: By
 }
 
 fn bench_encode<E: Encoding + Distribution<char>>(c: &mut Criterion) {
-    let mut rng = thread_rng();
+    let mut rng = rng();
     c.bench_function(&format!("{}::encode", E::shorthand()), |b| {
         b.iter_batched(
             || rng.sample(E::default()),
@@ -51,7 +51,7 @@ fn bench_encode<E: Encoding + Distribution<char>>(c: &mut Criterion) {
 }
 
 fn bench_decode<E: Encoding + Distribution<char>>(c: &mut Criterion) {
-    let mut rng = thread_rng();
+    let mut rng = rng();
     c.bench_function(&format!("{}::decode", E::shorthand()), |b| {
         b.iter_batched_ref(
             || {

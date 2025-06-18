@@ -2,7 +2,7 @@ use crate::encoding::sealed::Sealed;
 use crate::encoding::{AlwaysValid, NullTerminable, ValidateError};
 use crate::{Encoding, Str};
 #[cfg(feature = "rand")]
-use rand::{distributions::Distribution, Rng};
+use rand::{distr::Distribution, Rng};
 
 /// The [ASCII](https://en.wikipedia.org/wiki/ASCII) encoding.
 #[non_exhaustive]
@@ -63,7 +63,7 @@ impl NullTerminable for Ascii {}
 #[cfg(feature = "rand")]
 impl Distribution<char> for Ascii {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> char {
-        char::from(rng.gen_range(0..128))
+        char::from(rng.random_range(0..128))
     }
 }
 
@@ -121,7 +121,7 @@ impl AlwaysValid for ExtendedAscii {}
 #[cfg(feature = "rand")]
 impl Distribution<char> for ExtendedAscii {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> char {
-        char::from(rng.gen::<u8>())
+        char::from(rng.random::<u8>())
     }
 }
 
