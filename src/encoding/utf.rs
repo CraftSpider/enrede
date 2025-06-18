@@ -252,8 +252,6 @@ macro_rules! utf32_impl {
             }
 
             fn validate(bytes: &[u8]) -> Result<(), ValidateError> {
-                extern crate std;
-                std::dbg!(bytes);
                 for (idx, chunk) in bytes.chunks(4).enumerate() {
                     if chunk.len() != 4 {
                         return Err(ValidateError {
@@ -263,7 +261,6 @@ macro_rules! utf32_impl {
                     }
 
                     let c = u32::$method_from([chunk[0], chunk[1], chunk[2], chunk[3]]);
-                    std::eprintln!("Val: {c:X}");
                     if (0xD800..0xE000).contains(&c) || (0x0011_0000..).contains(&c) {
                         return Err(ValidateError {
                             valid_up_to: idx * 4,
