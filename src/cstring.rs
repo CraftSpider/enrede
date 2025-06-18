@@ -11,7 +11,7 @@ use core::ops::{Deref, DerefMut};
 use crate::cstr::CStr;
 use crate::encoding::{AlwaysValid, Encoding, NullTerminable, ValidateError};
 use crate::str::Str;
-use crate::string::String;
+use crate::string::{OwnValidateError, String};
 
 /// The cause of an error while creating a [`CString`]
 #[derive(Debug, PartialEq)]
@@ -50,7 +50,7 @@ impl fmt::Display for CStringError {
 }
 
 impl Error for CStringError {
-    fn cause(&self) -> Option<&dyn Error> {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
         match &self.cause {
             CStringErrorCause::Invalid(err) => Some(err),
             CStringErrorCause::HasNull { .. } => None,
@@ -174,12 +174,14 @@ impl<E: Encoding + NullTerminable> CString<E> {
     }
 
     /// Convert an [`std::CString`](std::ffi::String) directly into a [`String<E>`]
-    pub fn from_std(value: alloc::ffi::CString) -> Result<Self, ValidateError> {
+    pub fn from_std(value: alloc::ffi::CString) -> Result<Self, OwnValidateError> {
         let bytes = value.into_bytes();
-        E::validate(&bytes)?;
-        // SAFETY: An std CString is guaranteed to contain no internal null bytes
-        //         Bytes have been validated
-        Ok(unsafe { CString::from_vec_unchecked(bytes) })
+        match E::validate(&bytes) {
+            // SAFETY: An std CString is guaranteed to contain no internal null bytes
+            //         Bytes have been validated
+            Ok(_) => Ok(unsafe { CString::from_vec_unchecked(bytes) }),
+            Err(err) => Err(OwnValidateError::new(err, bytes)),
+        }
     }
 
     /// Convert a [`CString<E>`] directly into an [`std::CString`](std::ffi::CString)
@@ -293,7 +295,7 @@ impl<E: NullTerminable> TryFrom<String<E>> for CString<E> {
 }
 
 impl<E: NullTerminable> TryFrom<alloc::ffi::CString> for CString<E> {
-    type Error = ValidateError;
+    type Error = OwnValidateError;
 
     fn try_from(value: alloc::ffi::CString) -> Result<Self, Self::Error> {
         Self::from_std(value)

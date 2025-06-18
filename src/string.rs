@@ -37,6 +37,44 @@ impl fmt::Display for InvalidChar {
 
 impl Error for InvalidChar {}
 
+/// An error encountered while validating a byte stream for a certain encoding.
+///
+/// A variant of [`ValidateError`] for String methods which receive an owned buffer. The buffer can
+/// be retrieved from the error.
+#[derive(Clone, Debug, PartialEq)]
+pub struct OwnValidateError {
+    bytes: Vec<u8>,
+    cause: ValidateError,
+}
+
+impl OwnValidateError {
+    pub(crate) fn new(cause: ValidateError, bytes: Vec<u8>) -> OwnValidateError {
+        OwnValidateError { bytes, cause }
+    }
+
+    /// Get the validation failure that caused this error
+    pub fn cause(&self) -> &ValidateError {
+        &self.cause
+    }
+
+    /// Consume this error, returning the input bytes which generated the error in the first place.
+    pub fn into_vec(self) -> Vec<u8> {
+        self.bytes
+    }
+}
+
+impl fmt::Display for OwnValidateError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Error while validating data")
+    }
+}
+
+impl Error for OwnValidateError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(&self.cause)
+    }
+}
+
 /// Implementation of a generically encoded [`std::String`](std::string::String) type. This type is
 /// similar to the standard library [`String`](std::string::String) type in many ways, but instead
 /// of having a fixed UTF-8 encoding scheme, it uses an encoding determined by the generic `E` it
@@ -67,12 +105,14 @@ impl<E: Encoding> String<E> {
         String(PhantomData, bytes)
     }
 
-    /// Create a `String` from bytes, validating the encoding and returning a [`ValidateError`] if
-    /// it is not a valid string in the current encoding.
-    pub fn from_bytes(bytes: Vec<u8>) -> Result<String<E>, ValidateError> {
-        E::validate(&bytes)?;
-        // SAFETY: Bytes have been validated, they are guaranteed valid for the encoding
-        Ok(unsafe { String::from_bytes_unchecked(bytes) })
+    /// Create a `String` from bytes, validating the encoding and returning an [`OwnValidateError`]
+    /// if it is not a valid string in the current encoding.
+    pub fn from_bytes(bytes: Vec<u8>) -> Result<String<E>, OwnValidateError> {
+        match E::validate(&bytes) {
+            // SAFETY: Bytes have been validated, they are guaranteed valid for the encoding
+            Ok(_) => Ok(unsafe { String::from_bytes_unchecked(bytes) }),
+            Err(err) => Err(OwnValidateError::new(err, bytes)),
+        }
     }
 
     /// Attempt to convert bytes into a [`Str<E>`]. If any bytes are invalid for the current
