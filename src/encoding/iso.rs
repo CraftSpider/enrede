@@ -262,14 +262,14 @@ impl Distribution<char> for Iso8859_3 {
         if c < 95 {
             char::from(c + 0x20)
         } else {
-            let offset = match c {
+            let offset = match c + 65 {
                 ..=0xA4 => 0,
-                ..=0xAD => 1,
-                ..=0xBD => 2,
-                ..=0xC2 => 3,
-                ..=0xCF => 4,
-                ..=0xE2 => 5,
-                ..=0xEF => 6,
+                ..=0xAC => 1,
+                ..=0xBB => 2,
+                ..=0xBF => 3,
+                ..=0xCB => 4,
+                ..=0xDD => 5,
+                ..=0xE9 => 6,
                 _ => 7,
             };
             DECODE_MAP_8859_3[(c - 95 + offset) as usize]
