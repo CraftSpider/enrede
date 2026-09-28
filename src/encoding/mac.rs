@@ -1,5 +1,5 @@
 use crate::encoding::sealed::Sealed;
-use crate::encoding::{AlwaysValid, NullTerminable, ValidateError};
+use crate::encoding::{AlwaysValid, Enc, NullTerminable, ValidateError};
 use crate::{Encoding, Str};
 #[cfg(feature = "rand")]
 use rand::distr::Distribution;
@@ -31,6 +31,10 @@ impl Encoding for MacRoman {
 
     fn shorthand() -> &'static str {
         "mac_roman"
+    }
+
+    fn dyn_enc() -> Enc {
+        Enc::MacRoman
     }
 
     fn validate(_: &[u8]) -> Result<(), ValidateError> {

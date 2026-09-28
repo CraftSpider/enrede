@@ -134,6 +134,8 @@ impl<E: Encoding> Error for RecodeIntoError<'_, E> {}
 /// `Str` only implements `==` between instances with the same encoding. To compare strings of
 /// different encoding by characters, use `a.chars().eq(b.chars())`.
 ///
+/// See [`DynStr`](crate::EncStr) for a version that allows picking the encoding at runtime.
+///
 /// ## Invariant
 ///
 /// Rust libraries may assume that a `Str<E>` is valid for the [`Encoding`] `E`.

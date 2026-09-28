@@ -67,6 +67,9 @@ pub trait Encoding: Default + Sealed {
     #[doc(hidden)]
     fn shorthand() -> &'static str;
 
+    #[doc(hidden)]
+    fn dyn_enc() -> Enc;
+
     /// Given a byte slice, determine whether it is valid for the current encoding.
     fn validate(bytes: &[u8]) -> Result<(), ValidateError>;
 
@@ -138,6 +141,79 @@ pub trait NullTerminable: Encoding {}
 /// An encoding for which all bytes are always valid, meaning validation of a byte slice for this
 /// encoding will never fail.
 pub trait AlwaysValid: Encoding {}
+
+macro_rules! enc {
+    ($($encoding:ident),* $(,)?) => {
+        /// Enumeration of all supported string encodings. Supports most encoding operations
+        #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+        #[non_exhaustive]
+        pub enum Enc {
+            $(
+            #[doc = concat!("See [`", stringify!($encoding), "`]")]
+            $encoding,
+            )*
+        }
+
+        impl Enc {
+            /// Get the [`Enc`] value for the provided encoding
+            pub fn of<E: Encoding>() -> Enc {
+                E::dyn_enc()
+            }
+
+            /// Given a byte slice, determine whether it is valid for the current encoding.
+            pub fn validate(self, bytes: &[u8]) -> Result<(), ValidateError> {
+                match self {
+                    $(Self::$encoding => $encoding::validate(bytes)),*
+                }
+            }
+
+            pub(crate) unsafe fn decode_char_unchecked(self, str: crate::EncStr<'_>) -> (char, crate::EncStr<'_>) {
+                match self {
+                    $(
+                    Self::$encoding => {
+                        let (c, str) = $encoding::decode_char(str.downcast_unchecked());
+                        (c, str.into())
+                    }
+                    ),*
+                }
+            }
+        }
+    }
+}
+
+// This should be kept up-to-date with new [`crate::Encoding`] impls
+enc!(
+    // Basic impls
+    Ascii,
+    ExtendedAscii,
+    // ISO impls
+    Iso8859_1,
+    Iso8859_2,
+    Iso8859_3,
+    Iso8859_15,
+    // JIS impls
+    JisX0201,
+    JisX0208,
+    ShiftJIS,
+    // Mac impls
+    MacRoman,
+    // Win impls
+    Win1251,
+    Win1252,
+    Win1252Loose,
+    // UTF impls
+    Utf8,
+    Utf16LE,
+    Utf16BE,
+    Utf32LE,
+    Utf32BE,
+);
+
+impl<E: Encoding> From<E> for Enc {
+    fn from(_: E) -> Self {
+        E::dyn_enc()
+    }
+}
 
 /// An error encountered while validating a byte stream for a certain encoding.
 #[derive(Clone, Debug, PartialEq)]

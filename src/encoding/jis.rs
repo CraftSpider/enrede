@@ -1,5 +1,5 @@
 use crate::encoding::sealed::Sealed;
-use crate::encoding::{NullTerminable, ValidateError};
+use crate::encoding::{Enc, NullTerminable, ValidateError};
 use crate::{Encoding, Str};
 use arrayvec::ArrayVec;
 #[cfg(feature = "rand")]
@@ -28,6 +28,10 @@ impl Encoding for JisX0201 {
 
     fn shorthand() -> &'static str {
         "jisx0201"
+    }
+
+    fn dyn_enc() -> Enc {
+        Enc::JisX0201
     }
 
     fn validate(bytes: &[u8]) -> Result<(), ValidateError> {
@@ -108,6 +112,10 @@ impl Encoding for JisX0208 {
 
     fn shorthand() -> &'static str {
         "jisx0208"
+    }
+
+    fn dyn_enc() -> Enc {
+        Enc::JisX0208
     }
 
     fn validate(bytes: &[u8]) -> Result<(), ValidateError> {
@@ -232,6 +240,10 @@ impl Encoding for ShiftJIS {
 
     fn shorthand() -> &'static str {
         "shiftjis"
+    }
+
+    fn dyn_enc() -> Enc {
+        Enc::ShiftJIS
     }
 
     fn validate(bytes: &[u8]) -> Result<(), ValidateError> {
