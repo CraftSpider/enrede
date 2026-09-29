@@ -344,7 +344,7 @@ impl<E: Encoding> Str<E> {
     /// panics if the index doesn't lie on a character boundary.
     pub fn split_at(&self, idx: usize) -> Option<(&Str<E>, &Str<E>)> {
         if self.is_char_boundary(idx) && idx < self.len() {
-            let (start, end) = self.1.split_at(idx);
+            let (start, end) = self.as_bytes().split_at(idx);
             // SAFETY: Index is a character boundary. Internal data guaranteed valid.
             let start = unsafe { Str::from_bytes_unchecked(start) };
             // SAFETY: Index is a character boundary. Internal data guaranteed valid.

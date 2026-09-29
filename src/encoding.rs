@@ -142,6 +142,34 @@ pub trait NullTerminable: Encoding {}
 /// encoding will never fail.
 pub trait AlwaysValid: Encoding {}
 
+trait IntoAV {
+    fn into_av(self) -> ArrayVec<u8, 4>;
+}
+
+impl IntoAV for u8 {
+    fn into_av(self) -> ArrayVec<u8, 4> {
+        ArrayVec::from_iter([self])
+    }
+}
+
+impl IntoAV for [u8; 4] {
+    fn into_av(self) -> ArrayVec<u8, 4> {
+        ArrayVec::from(self)
+    }
+}
+
+impl IntoAV for ArrayVec<u8, 2> {
+    fn into_av(self) -> ArrayVec<u8, 4> {
+        ArrayVec::from_iter(self)
+    }
+}
+
+impl IntoAV for ArrayVec<u8, 4> {
+    fn into_av(self) -> ArrayVec<u8, 4> {
+        self
+    }
+}
+
 macro_rules! enc {
     ($($encoding:ident),* $(,)?) => {
         /// Enumeration of all supported string encodings. Supports most encoding operations
@@ -160,10 +188,70 @@ macro_rules! enc {
                 E::dyn_enc()
             }
 
+            #[allow(unused)]
+            pub(crate) fn replacement(self) -> char {
+                match self {
+                    $(Self::$encoding => $encoding::REPLACEMENT),*
+                }
+            }
+
+            #[allow(unused)]
+            pub(crate) fn shorthand(self) -> &'static str {
+                match self {
+                    $(Self::$encoding => $encoding::shorthand()),*
+                }
+            }
+
             /// Given a byte slice, determine whether it is valid for the current encoding.
             pub fn validate(self, bytes: &[u8]) -> Result<(), ValidateError> {
                 match self {
                     $(Self::$encoding => $encoding::validate(bytes)),*
+                }
+            }
+
+            /// Take a character and encode it directly into the provided buffer. If successful, returns the
+            /// length of the buffer that was written.
+            pub fn encode(self, char: char, out: &mut [u8]) -> Result<usize, EncodeError> {
+                match self.encode_char(char) {
+                    Some(a) => {
+                        let a = a.slice();
+                        if a.len() > out.len() {
+                            Err(EncodeError::NeedSpace { len: a.len() })
+                        } else {
+                            out[..a.len()].copy_from_slice(a);
+                            Ok(a.len())
+                        }
+                    }
+                    None => Err(EncodeError::InvalidChar),
+                }
+            }
+
+            /// Given a string in another encoding, re-encode it into this encoding character by character.
+            /// On success, returns the length of the output that was written.
+            pub fn recode(self, str: crate::EncStr<'_>, out: &mut [u8]) -> Result<usize, RecodeError> {
+                str.char_indices().try_fold(0, |out_pos, (idx, c)| {
+                    match self.encode(c, &mut out[out_pos..]) {
+                        Ok(len) => Ok(out_pos + len),
+                        Err(e) => Err(RecodeError {
+                            input_used: idx,
+                            output_valid: out_pos,
+                            cause: match e {
+                                EncodeError::NeedSpace { len } => RecodeCause::NeedSpace { len },
+                                EncodeError::InvalidChar => RecodeCause::InvalidChar {
+                                    char: c,
+                                    len: self.char_len(c),
+                                },
+                            },
+                        }),
+                    }
+                })
+            }
+
+            pub(crate) fn encode_char(self, c: char) -> Option<ArrayVec<u8, 4>> {
+                match self {
+                    $(
+                    Self::$encoding => $encoding::encode_char(c).map(IntoAV::into_av)
+                    ),*
                 }
             }
 
@@ -174,6 +262,22 @@ macro_rules! enc {
                         let (c, str) = $encoding::decode_char(str.downcast_unchecked());
                         (c, str.into())
                     }
+                    ),*
+                }
+            }
+
+            pub(crate) unsafe fn char_bound_unchecked(self, str: crate::EncStr<'_>, idx: usize) -> bool {
+                match self {
+                    $(
+                    Self::$encoding => $encoding::char_bound(str.downcast_unchecked(), idx)
+                    ),*
+                }
+            }
+
+            pub(crate) fn char_len(self, c: char) -> usize {
+                match self {
+                    $(
+                    Self::$encoding => $encoding::char_len(c)
                     ),*
                 }
             }

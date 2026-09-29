@@ -21,7 +21,7 @@ impl<'a> Iterator for Chars<'a> {
         if self.str.is_empty() {
             return None;
         }
-        let (c, str) = unsafe { Enc::decode_char_unchecked(self.str.encoding, self.str) };
+        let (c, str) = unsafe { Enc::decode_char_unchecked(self.str.enc, self.str) };
         self.str = str;
         Some(c)
     }
