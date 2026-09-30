@@ -64,3 +64,5 @@ jobs:
         with:
           components: miri
       - run: cargo miri test --all-features
+        env:
+          MIRIFLAGS: -Zmiri-tree-borrows
