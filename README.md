@@ -17,6 +17,7 @@ The name, `enrede`, is a double wordplay - **En**code/**Re**code/**De**code, and
   but generic over encoding.
 - `CStr<E>` and `CString<E>` types, equivalent to `std::ffi::CStr` and `std::ffi::CString`,
   but generic over encoding.
+- `EncStr` and `EncString` types, supporting encoding dynamically chosen at runtime.
 - `Encoding` trait with support for lower-level direct encoding/recoding into slices
 - `no_std` support
 - `rand::Distribution` impls for encodings, allowing easy generation of valid characters for an encoding
@@ -25,7 +26,6 @@ The name, `enrede`, is a double wordplay - **En**code/**Re**code/**De**code, and
 
 These features are not yet supported, but are planned for a future version:
 
-- Dynamically encoded strings
 - Extended methods for encodings following certain properties:
   - Constant length encodings
 - More encodings

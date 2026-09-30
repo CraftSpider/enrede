@@ -1,10 +1,16 @@
-use crate::encoding::{ArrayLike, Enc};
+//! Implementation and utilities for a dynamically encoded [`std::String`](std::string::String)
+//! equivalent type.
+
+use crate::encoding::{ArrayLike, Enc, Utf8};
 use crate::string::{InvalidChar, OwnValidateError};
-use crate::EncStr;
-use alloc::borrow::Cow;
+use crate::{EncStr, Encoding, Str, String};
+use alloc::borrow::{Cow, ToOwned};
+use alloc::string::String as StdString;
 use alloc::vec::Vec;
-use core::borrow::Borrow;
-use core::ops::Deref;
+use core::borrow::{Borrow, BorrowMut};
+use core::fmt;
+use core::fmt::Formatter;
+use core::ops::{Deref, DerefMut};
 
 mod chunks;
 
@@ -117,18 +123,91 @@ impl EncString {
             )
         }
     }
+
+    // UTF-8 methods
+
+    /// Convert an [`std::String`](std::string::String) directly into an [`EncString`]
+    pub fn from_std(value: StdString) -> Self {
+        // SAFETY: `StdString` is UTF-8 by its validity guarantees.
+        unsafe { EncString::from_bytes_unchecked(Enc::Utf8, value.into_bytes()) }
+    }
+
+    /// Convert a [`EncString`] directly into an [`std::String`](std::string::String), if the
+    /// backing encoding is UTF-8.
+    pub fn into_std(self) -> Option<StdString> {
+        if self.0 == Enc::Utf8 {
+            // SAFETY: `EncString` is UTF-8 by its validity guarantees since encoding matches.
+            Some(unsafe { StdString::from_utf8_unchecked(self.into_bytes()) })
+        } else {
+            None
+        }
+    }
+}
+
+impl fmt::Debug for EncString {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        <EncStr as fmt::Debug>::fmt(self, f)
+    }
+}
+
+impl fmt::Display for EncString {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        <EncStr as fmt::Display>::fmt(self, f)
+    }
 }
 
 impl Deref for EncString {
     type Target = EncStr;
 
     fn deref(&self) -> &Self::Target {
-        unsafe { EncStr::from_bytes_unchecked(self.encoding(), self.as_bytes()) }
+        unsafe { EncStr::from_bytes_unchecked(self.0, &self.1) }
+    }
+}
+
+impl DerefMut for EncString {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unsafe { EncStr::from_bytes_unchecked_mut(self.0, &mut self.1) }
+    }
+}
+
+impl AsRef<EncStr> for EncString {
+    fn as_ref(&self) -> &EncStr {
+        self
+    }
+}
+
+impl AsMut<EncStr> for EncString {
+    fn as_mut(&mut self) -> &mut EncStr {
+        self
     }
 }
 
 impl Borrow<EncStr> for EncString {
     fn borrow(&self) -> &EncStr {
         self
+    }
+}
+
+impl BorrowMut<EncStr> for EncString {
+    fn borrow_mut(&mut self) -> &mut EncStr {
+        self
+    }
+}
+
+impl From<&str> for EncString {
+    fn from(value: &str) -> Self {
+        EncStr::from_std(value).to_owned()
+    }
+}
+
+impl From<StdString> for EncString {
+    fn from(value: StdString) -> Self {
+        Self::from_std(value)
+    }
+}
+
+impl<E: Encoding> From<String<E>> for EncString {
+    fn from(value: String<E>) -> Self {
+        unsafe { EncString::from_bytes_unchecked(Enc::of::<E>(), value.into_bytes()) }
     }
 }

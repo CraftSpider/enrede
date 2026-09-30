@@ -201,7 +201,7 @@ impl String<Utf8> {
         unsafe { String::from_bytes_unchecked(value.into_bytes()) }
     }
 
-    /// Convert a [`String<Utf8>`] directly into a [`std::String`](std::string::String)
+    /// Convert a [`String<Utf8>`] directly into an [`std::String`](std::string::String)
     pub fn into_std(self) -> StdString {
         // SAFETY: `String<Utf8>` is UTF-8 by its validity guarantees.
         unsafe { StdString::from_utf8_unchecked(self.into_bytes()) }

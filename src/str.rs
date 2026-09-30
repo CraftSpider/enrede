@@ -14,7 +14,7 @@ use core::hash::{Hash, Hasher};
 use core::marker::PhantomData;
 use core::ops::{Bound, Index, RangeBounds};
 use core::slice::SliceIndex;
-use core::{fmt, mem, ptr, slice};
+use core::{fmt, ptr, slice};
 #[cfg(feature = "serde")]
 use serde::{
     de::{self, Unexpected},
@@ -359,7 +359,8 @@ impl<E: Encoding> Str<E> {
     /// method panics if the index doesn't lie on a character boundary.
     pub fn split_at_mut(&mut self, idx: usize) -> Option<(&mut Str<E>, &mut Str<E>)> {
         if self.is_char_boundary(idx) && idx < self.len() {
-            let (start, end) = self.1.split_at_mut(idx);
+            // SAFETY: We won't be writing through this slice, only converting it back into a &mut Str<E>
+            let (start, end) = unsafe { self.as_bytes_mut().split_at_mut(idx) };
             // SAFETY: Index is a character boundary. Internal data guaranteed valid.
             let start = unsafe { Str::from_bytes_unchecked_mut(start) };
             // SAFETY: Index is a character boundary. Internal data guaranteed valid.
@@ -553,7 +554,7 @@ impl Str<Utf32> {
     pub fn try_chars(&self) -> Option<&[char]> {
         let len = self.1.len();
         let ptr = ptr::from_ref(&self.1);
-        if (ptr.cast::<()>() as usize) % mem::align_of::<char>() != 0 {
+        if (ptr.cast::<()>() as usize) % align_of::<char>() != 0 {
             None
         } else {
             // SAFETY: We have guaranteed correct alignment, and Utf32 encoding is exactly
@@ -690,7 +691,7 @@ mod tests {
     #[test]
     fn test_chars() {
         let str = Str::from_std("Abc𐐷d");
-        assert_eq!(&str.chars().collect::<Vec<_>>(), &['A', 'b', 'c', '𐐷', 'd'],);
+        assert_eq!(&str.chars().collect::<Vec<_>>(), &['A', 'b', 'c', '𐐷', 'd']);
 
         let str = Str::<Utf16>::from_utf16(&[
             b'A' as u16,
@@ -701,10 +702,10 @@ mod tests {
             b'd' as u16,
         ])
         .unwrap();
-        assert_eq!(&str.chars().collect::<Vec<_>>(), &['A', 'b', 'c', '𐐷', 'd'],);
+        assert_eq!(&str.chars().collect::<Vec<_>>(), &['A', 'b', 'c', '𐐷', 'd']);
 
         let str = Str::from_chars(&['A', 'b', 'c', '𐐷', 'd']);
-        assert_eq!(&str.chars().collect::<Vec<_>>(), &['A', 'b', 'c', '𐐷', 'd'],);
+        assert_eq!(&str.chars().collect::<Vec<_>>(), &['A', 'b', 'c', '𐐷', 'd']);
     }
 
     #[test]
