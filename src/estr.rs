@@ -2,10 +2,12 @@
 //!
 //! See also the [`EncStr`] type.
 
-use crate::encoding::{Enc, RecodeCause, ValidateError};
+#[cfg(feature = "alloc")]
+use crate::encoding::RecodeCause;
+use crate::encoding::{Enc, ValidateError};
 #[cfg(feature = "alloc")]
 use crate::estring::EncString;
-use crate::{encoding, Encoding, Str};
+use crate::{Encoding, Str};
 #[cfg(feature = "alloc")]
 use alloc::borrow::ToOwned;
 #[cfg(feature = "alloc")]
@@ -21,92 +23,8 @@ use core::{fmt, ptr, slice};
 
 mod iter;
 
+pub use crate::errors::{RecodeError, RecodeIntoError};
 pub use iter::*;
-
-/// Error encountered while re-encoding an [`EncStr`] into another
-/// format
-#[derive(Clone, Debug, PartialEq)]
-pub struct RecodeError {
-    valid_up_to: usize,
-    char: char,
-    char_len: u8,
-}
-
-impl RecodeError {
-    /// The length of valid data in the input before the error was encountered. Calling
-    /// [`recode`](EncStr::recode) again on the input sliced down to this length will succeed.
-    pub fn valid_up_to(&self) -> usize {
-        self.valid_up_to
-    }
-
-    /// The character encountered that caused re-encoding to fail. This character most likely isn't
-    /// supported by the new encoding.
-    pub fn char(&self) -> char {
-        self.char
-    }
-
-    /// The length of the character in the input encoding. Skipping this many bytes forwards from
-    /// [`valid_up_to`](Self::valid_up_to) and trying again will avoid this particular error
-    /// character (though recoding may fail again immediately due to another invalid character).
-    pub fn char_len(&self) -> usize {
-        self.char_len as usize
-    }
-}
-
-/// Error encountered while re-encoding a [`Str`](Str) or [`CStr`](crate::CStr) into another
-/// format in a pre-allocated buffer
-#[derive(Clone, PartialEq)]
-pub struct RecodeIntoError<'a> {
-    input_used: usize,
-    str: &'a EncStr,
-    cause: RecodeCause,
-}
-
-impl<'a> RecodeIntoError<'a> {
-    fn from_recode(err: encoding::RecodeError, str: &'a EncStr) -> Self {
-        RecodeIntoError {
-            input_used: err.input_used(),
-            str,
-            cause: err.cause().clone(),
-        }
-    }
-
-    /// The length of valid data in the input before the error was encountered. Calling
-    /// [`recode_into`](EncStr::recode_into) again on the input sliced down to this length will succeed.
-    pub fn valid_up_to(&self) -> usize {
-        self.input_used
-    }
-
-    /// The portion of the buffer with valid data written into it, as an [`EncStr`] in the desired
-    /// encoding.
-    pub fn output_valid(&self) -> &'a EncStr {
-        self.str
-    }
-
-    /// The reason encoding stopped. See [`RecodeCause`] for more details on possible reasons.
-    pub fn cause(&self) -> &RecodeCause {
-        &self.cause
-    }
-}
-
-impl fmt::Debug for RecodeIntoError<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("RecodeIntoError")
-            .field("input_used", &self.input_used)
-            .field("str", &self.str)
-            .field("cause", &self.cause)
-            .finish()
-    }
-}
-
-impl fmt::Display for RecodeIntoError<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Error while recoding `Str` into buffer: ")?;
-        self.cause.write_cause(f)
-    }
-}
-
-impl Error for RecodeIntoError<'_> {}
 
 /// Implementation of a dynamically encoded [`str`] type. This type is similar to the standard
 /// library [`str`] type in many ways, but instead of having a fixed UTF-8 encoding scheme, it uses
@@ -366,7 +284,7 @@ impl EncStr {
         &self,
         encoding: Enc,
         buffer: &'a mut [u8],
-    ) -> Result<&'a EncStr, RecodeIntoError<'a>> {
+    ) -> Result<&'a EncStr, RecodeIntoError<'a, Self>> {
         encoding
             .recode(self, buffer)
             .map(|len| {
@@ -645,7 +563,10 @@ impl<'a, E: Encoding> TryFrom<&'a EncStr> for &'a Str<E> {
     type Error = EncodingMismatch;
 
     fn try_from(value: &'a EncStr) -> Result<Self, Self::Error> {
-        value.downcast().ok_or(EncodingMismatch)
+        value.downcast().ok_or(EncodingMismatch {
+            found: value.encoding(),
+            expected: Enc::of::<E>(),
+        })
     }
 }
 
@@ -657,9 +578,37 @@ impl<'a> From<&'a str> for &'a EncStr {
 
 /// Error returned when an operation is performed on a [`EncStr`] that requires one encoding but
 /// a different one is found.
-#[derive(Default, Debug)]
+#[derive(Debug)]
 #[non_exhaustive]
-pub struct EncodingMismatch;
+pub struct EncodingMismatch {
+    found: Enc,
+    expected: Enc,
+}
+
+impl EncodingMismatch {
+    /// The encoding that was actually found during the operation
+    pub fn found(&self) -> Enc {
+        self.found
+    }
+
+    /// The encoding that was expected
+    pub fn expected(&self) -> Enc {
+        self.expected
+    }
+}
+
+impl fmt::Display for EncodingMismatch {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Encoding mismatch - expected encoding {} but found {} instead",
+            self.expected.shorthand(),
+            self.found.shorthand()
+        )
+    }
+}
+
+impl Error for EncodingMismatch {}
 
 #[cfg(test)]
 mod tests {

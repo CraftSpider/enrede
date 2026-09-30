@@ -1,9 +1,9 @@
 //! Implementation and utilities for a dynamically encoded [`std::String`](std::string::String)
 //! equivalent type.
 
-use crate::encoding::{ArrayLike, Enc, Utf8};
+use crate::encoding::{ArrayLike, Enc};
 use crate::string::{InvalidChar, OwnValidateError};
-use crate::{EncStr, Encoding, Str, String};
+use crate::{EncStr, Encoding, String};
 use alloc::borrow::{Cow, ToOwned};
 use alloc::string::String as StdString;
 use alloc::vec::Vec;
