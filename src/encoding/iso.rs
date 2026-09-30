@@ -31,6 +31,24 @@ const DECODE_MAP_8859_3: [char; 96] = [
     'ñ', 'ò', 'ó', 'ô', 'ġ', 'ö', '÷', 'ĝ', 'ù', 'ú', 'û', 'ü', 'ŭ', 'ŝ', '˙',
 ];
 
+const DECODE_MAP_8859_4: [char; 96] = [
+    ' ', 'Ą', 'ĸ', 'Ŗ', '¤', 'Ĩ', 'Ļ', '§', '¨', 'Š', 'Ē', 'Ģ', 'Ŧ', '\u{AD}', 'Ž', '¯', '°', 'ą',
+    '˛', 'ŗ', '´', 'ĩ', 'ļ', 'ˇ', '¸', 'š', 'ē', 'ģ', 'ŧ', 'Ŋ', 'ž', 'ŋ', 'Ā', 'Á', 'Â', 'Ã', 'Ä',
+    'Å', 'Æ', 'Į', 'Č', 'É', 'Ę', 'Ë', 'Ė', 'Í', 'Î', 'Ī', 'Đ', 'Ņ', 'Ō', 'Ķ', 'Ô', 'Õ', 'Ö', '×',
+    'Ø', 'Ų', 'Ú', 'Û', 'Ü', 'Ũ', 'Ū', 'ß', 'ā', 'á', 'â', 'ã', 'ä', 'å', 'æ', 'į', 'č', 'é', 'ę',
+    'ë', 'ė', 'í', 'î', 'ī', 'đ', 'ņ', 'ō', 'ķ', 'ô', 'õ', 'ö', '÷', 'ø', 'ų', 'ú', 'û', 'ü', 'ũ',
+    'ū', '˙',
+];
+
+const DECODE_MAP_8859_5: [char; 96] = [
+    ' ', 'Ё', 'Ђ', 'Ѓ', 'Є', 'Ѕ', 'І', 'Ї', 'Ј', 'Љ', 'Њ', 'Ћ', 'Ќ', '\u{AD}', 'Ў', 'Џ', 'А', 'Б',
+    'В', 'Г', 'Д', 'Е', 'Ж', 'З', 'И', 'Й', 'К', 'Л', 'М', 'Н', 'О', 'П', 'Р', 'С', 'Т', 'У', 'Ф',
+    'Х', 'Ц', 'Ч', 'Ш', 'Щ', 'Ъ', 'Ы', 'Ь', 'Э', 'Ю', 'Я', 'а', 'б', 'в', 'г', 'д', 'е', 'ж', 'з',
+    'и', 'й', 'к', 'л', 'м', 'н', 'о', 'п', 'р', 'с', 'т', 'у', 'ф', 'х', 'ц', 'ч', 'ш', 'щ', 'ъ',
+    'ы', 'ь', 'э', 'ю', 'я', '№', 'ё', 'ђ', 'ѓ', 'є', 'ѕ', 'і', 'ї', 'ј', 'љ', 'њ', 'ћ', 'ќ', '§',
+    'ў', 'џ',
+];
+
 const DECODE_MAP_8859_15: [char; 96] = [
     ' ', '¡', '¢', '£', '€', '¥', 'Š', '§', 'š', '©', 'ª', '«', '¬', '\u{AD}', '®', '¯', '°', '±',
     '²', '³', 'Ž', 'µ', '¶', '·', 'ž', '¹', 'º', '»', 'Œ', 'œ', 'Ÿ', '¿', 'À', 'Á', 'Â', 'Ã', 'Ä',
@@ -273,6 +291,156 @@ impl Distribution<char> for Iso8859_3 {
                 _ => 7,
             };
             DECODE_MAP_8859_3[(c - 95 + offset) as usize]
+        }
+    }
+}
+
+/// The [ISO/IEC 8859-4](https://en.wikipedia.org/wiki/ISO/IEC_8859-4) encoding.
+#[non_exhaustive]
+#[derive(Default)]
+pub struct Iso8859_4;
+
+impl Sealed for Iso8859_4 {}
+
+impl Encoding for Iso8859_4 {
+    const REPLACEMENT: char = '?';
+    const MAX_LEN: usize = 1;
+    type Bytes = u8;
+
+    fn shorthand() -> &'static str {
+        "iso8859_4"
+    }
+
+    fn validate(bytes: &[u8]) -> Result<(), ValidateError> {
+        bytes.iter().enumerate().try_for_each(|(idx, c)| {
+            if (0x20..0x7F).contains(c) || ((0xA0..).contains(c)) {
+                Ok(())
+            } else {
+                Err(ValidateError {
+                    valid_up_to: idx,
+                    error_len: Some(1),
+                })
+            }
+        })
+    }
+
+    fn encode_char(c: char) -> Option<Self::Bytes> {
+        if (0x20..0x7F).contains(&(c as u32)) {
+            Some(c as u8)
+        } else {
+            let pos = DECODE_MAP_8859_4.iter().position(|v| *v == c)? as u8;
+            Some(pos + 0xA0)
+        }
+    }
+
+    fn decode_char(str: &Str<Self>) -> (char, &Str<Self>) {
+        let b = str.as_bytes()[0];
+        if (0xA0..).contains(&b) {
+            (DECODE_MAP_8859_4[b as usize - 0xA0], &str[1..])
+        } else {
+            (b as char, &str[1..])
+        }
+    }
+
+    fn char_bound(_: &Str<Self>, _: usize) -> bool {
+        true
+    }
+
+    fn char_len(c: char) -> usize {
+        if (0x20..0x7F).contains(&(c as u32)) || DECODE_MAP_8859_4.contains(&c) {
+            1
+        } else {
+            0
+        }
+    }
+}
+
+impl NullTerminable for Iso8859_4 {}
+
+#[cfg(feature = "rand")]
+impl Distribution<char> for Iso8859_4 {
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> char {
+        // Total number of characters in encoding
+        let c = rng.random_range(0u8..191);
+        if c < 95 {
+            char::from(c + 0x20)
+        } else {
+            DECODE_MAP_8859_4[(c - 95) as usize]
+        }
+    }
+}
+
+/// The [ISO/IEC 8859-5](https://en.wikipedia.org/wiki/ISO/IEC_8859-5) encoding.
+#[non_exhaustive]
+#[derive(Default)]
+pub struct Iso8859_5;
+
+impl Sealed for Iso8859_5 {}
+
+impl Encoding for Iso8859_5 {
+    const REPLACEMENT: char = '?';
+    const MAX_LEN: usize = 1;
+    type Bytes = u8;
+
+    fn shorthand() -> &'static str {
+        "iso8859_5"
+    }
+
+    fn validate(bytes: &[u8]) -> Result<(), ValidateError> {
+        bytes.iter().enumerate().try_for_each(|(idx, c)| {
+            if (0x20..0x7F).contains(c) || ((0xA0..).contains(c)) {
+                Ok(())
+            } else {
+                Err(ValidateError {
+                    valid_up_to: idx,
+                    error_len: Some(1),
+                })
+            }
+        })
+    }
+
+    fn encode_char(c: char) -> Option<Self::Bytes> {
+        if (0x20..0x7F).contains(&(c as u32)) {
+            Some(c as u8)
+        } else {
+            let pos = DECODE_MAP_8859_5.iter().position(|v| *v == c)? as u8;
+            Some(pos + 0xA0)
+        }
+    }
+
+    fn decode_char(str: &Str<Self>) -> (char, &Str<Self>) {
+        let b = str.as_bytes()[0];
+        if (0xA0..).contains(&b) {
+            (DECODE_MAP_8859_5[b as usize - 0xA0], &str[1..])
+        } else {
+            (b as char, &str[1..])
+        }
+    }
+
+    fn char_bound(_: &Str<Self>, _: usize) -> bool {
+        true
+    }
+
+    fn char_len(c: char) -> usize {
+        if (0x20..0x7F).contains(&(c as u32)) || DECODE_MAP_8859_5.contains(&c) {
+            1
+        } else {
+            0
+        }
+    }
+}
+
+impl NullTerminable for Iso8859_5 {}
+
+#[cfg(feature = "rand")]
+impl Distribution<char> for Iso8859_5 {
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> char {
+        // Total number of characters in encoding
+        let c = rng.random_range(0u8..191);
+        if c < 95 {
+            char::from(c + 0x20)
+        } else {
+            DECODE_MAP_8859_5[(c - 95) as usize]
         }
     }
 }

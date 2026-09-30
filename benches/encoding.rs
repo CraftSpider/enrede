@@ -2,9 +2,9 @@ use byte_unit::{Byte, Unit};
 use core::hint::black_box;
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 use enrede::encoding::{
-    ArrayLike, Ascii, ExtendedAscii, Iso8859_1, Iso8859_15, Iso8859_2, Iso8859_3, JisX0201,
-    JisX0208, MacRoman, ShiftJIS, Utf16BE, Utf16LE, Utf32BE, Utf32LE, Win1251, Win1252,
-    Win1252Loose,
+    ArrayLike, Ascii, ExtendedAscii, Iso8859_1, Iso8859_15, Iso8859_2, Iso8859_3, Iso8859_4,
+    Iso8859_5, JisX0201, JisX0208, MacRoman, ShiftJIS, Utf16BE, Utf16LE, Utf32BE, Utf32LE, Win1251,
+    Win1252, Win1252Loose,
 };
 use enrede::{Encoding, String};
 use rand::distr::Distribution;
@@ -91,6 +91,8 @@ pub fn bench_all(c: &mut Criterion) {
     bench_encoding::<Iso8859_1>(c);
     bench_encoding::<Iso8859_2>(c);
     bench_encoding::<Iso8859_3>(c);
+    bench_encoding::<Iso8859_4>(c);
+    bench_encoding::<Iso8859_5>(c);
     bench_encoding::<Iso8859_15>(c);
 
     bench_encoding::<JisX0201>(c);
