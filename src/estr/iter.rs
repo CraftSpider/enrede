@@ -5,11 +5,11 @@ use core::slice;
 
 /// Character iterator for encoded strings. This iterates the encoding yielding Unicode code points.
 pub struct Chars<'a> {
-    str: EncStr<'a>,
+    str: &'a EncStr,
 }
 
 impl<'a> Chars<'a> {
-    pub(super) fn new(str: EncStr<'a>) -> Self {
+    pub(super) fn new(str: &'a EncStr) -> Self {
         Chars { str }
     }
 }
@@ -21,7 +21,7 @@ impl<'a> Iterator for Chars<'a> {
         if self.str.is_empty() {
             return None;
         }
-        let (c, str) = unsafe { Enc::decode_char_unchecked(self.str.enc, self.str) };
+        let (c, str) = unsafe { Enc::decode_char_unchecked(self.str.encoding(), self.str) };
         self.str = str;
         Some(c)
     }
@@ -37,7 +37,7 @@ pub struct CharIndices<'a> {
 }
 
 impl<'a> CharIndices<'a> {
-    pub(super) fn new(str: EncStr<'a>) -> Self {
+    pub(super) fn new(str: &'a EncStr) -> Self {
         CharIndices {
             offset: 0,
             iter: Chars::new(str),

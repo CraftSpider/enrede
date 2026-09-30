@@ -1,19 +1,14 @@
 use crate::encoding::{ArrayLike, Enc};
 use crate::string::{InvalidChar, OwnValidateError};
 use crate::EncStr;
+use alloc::borrow::Cow;
 use alloc::vec::Vec;
+use core::borrow::Borrow;
+use core::ops::Deref;
 
 mod chunks;
 
 use chunks::EncodedChunks;
-
-/// Similar to Cow but supports custom conversion for sized types.
-pub enum MaybeOwned<'a> {
-    /// Owned value
-    Owned(EncString),
-    /// Borrowed value
-    Borrowed(EncStr<'a>),
-}
 
 /// Implementation of a dynamically encoded [`std::String`](std::string::String) type. This type is
 /// similar to the standard library [`String`](std::string::String) type in many ways, but instead
@@ -57,18 +52,18 @@ impl EncString {
     /// Attempt to convert bytes into a [`Str<E>`]. If any bytes are invalid for the current
     /// encoding, a new `String` will instead be allocated that replaces the invalid bytes with the
     /// replacement character for the encoding.
-    pub fn from_bytes_lossy(encoding: Enc, bytes: &[u8]) -> MaybeOwned<'_> {
+    pub fn from_bytes_lossy(encoding: Enc, bytes: &[u8]) -> Cow<'_, EncStr> {
         let mut chunks = EncodedChunks::new(encoding, bytes);
 
         let first_valid = if let Some(chunk) = chunks.next() {
             let valid = chunk.valid();
             if chunk.invalid().is_empty() {
                 debug_assert_eq!(valid.len(), bytes.len());
-                return MaybeOwned::Borrowed(valid);
+                return Cow::Borrowed(valid);
             }
             valid
         } else {
-            return MaybeOwned::Borrowed(EncStr::empty(encoding));
+            return Cow::Borrowed(EncStr::empty(encoding));
         };
 
         let mut res = EncString::with_capacity(encoding, bytes.len());
@@ -82,7 +77,7 @@ impl EncString {
             }
         }
 
-        MaybeOwned::Owned(res)
+        Cow::Owned(res)
     }
 
     /// Convert this `String` into a vector of its contained bytes
@@ -111,7 +106,7 @@ impl EncString {
     }
 
     /// Extend this `String` with the contents of the provided [`Str`].
-    pub fn push_str(&mut self, str: EncStr<'_>) {
+    pub fn push_str(&mut self, str: &EncStr) {
         if str.encoding() == self.0 {
             self.1.extend(str.as_bytes());
         } else {
@@ -122,10 +117,18 @@ impl EncString {
             )
         }
     }
+}
 
-    pub fn deref(&self) -> EncStr<'_> {
-        unsafe { EncStr::from_bytes_unchecked(self.0, &self.1) }
+impl Deref for EncString {
+    type Target = EncStr;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { EncStr::from_bytes_unchecked(self.encoding(), self.as_bytes()) }
     }
 }
 
-// Unfortunately, we can't impl Deref or DerefMut for now
+impl Borrow<EncStr> for EncString {
+    fn borrow(&self) -> &EncStr {
+        self
+    }
+}

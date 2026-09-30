@@ -13,12 +13,12 @@ impl<'a> EncodedChunks<'a> {
 }
 
 pub(crate) struct EncodedChunk<'a> {
-    valid: EncStr<'a>,
+    valid: &'a EncStr,
     invalid: &'a [u8],
 }
 
 impl<'a> EncodedChunk<'a> {
-    pub(super) fn valid(&self) -> EncStr<'a> {
+    pub(super) fn valid(&self) -> &'a EncStr {
         self.valid
     }
 

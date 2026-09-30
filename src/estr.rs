@@ -6,14 +6,15 @@ use crate::encoding::{Enc, RecodeCause, ValidateError};
 #[cfg(feature = "alloc")]
 use crate::estring::EncString;
 use crate::{encoding, Encoding, Str};
+use alloc::borrow::ToOwned;
 #[cfg(feature = "alloc")]
 use alloc::vec;
 use core::cmp::Ordering;
 use core::error::Error;
-use core::fmt;
 use core::fmt::Formatter;
 use core::ops::{Bound, RangeBounds};
 use core::slice::SliceIndex;
+use core::{fmt, ptr, slice};
 
 mod iter;
 
@@ -54,12 +55,12 @@ impl RecodeError {
 #[derive(Clone, PartialEq)]
 pub struct RecodeIntoError<'a> {
     input_used: usize,
-    str: EncStr<'a>,
+    str: &'a EncStr,
     cause: RecodeCause,
 }
 
 impl<'a> RecodeIntoError<'a> {
-    fn from_recode(err: encoding::RecodeError, str: EncStr<'a>) -> Self {
+    fn from_recode(err: encoding::RecodeError, str: &'a EncStr) -> Self {
         RecodeIntoError {
             input_used: err.input_used(),
             str,
@@ -75,7 +76,7 @@ impl<'a> RecodeIntoError<'a> {
 
     /// The portion of the buffer with valid data written into it, as a [`Str`] in the desired
     /// encoding.
-    pub fn output_valid(&self) -> EncStr<'a> {
+    pub fn output_valid(&self) -> &'a EncStr {
         self.str
     }
 
@@ -119,19 +120,20 @@ impl Error for RecodeIntoError<'_> {}
 ///
 /// Constructing non-`Enc` string slices is not immediate UB, but any function called on it may
 /// assume that it is valid.
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
-pub struct EncStr<'a> {
-    enc: Enc,
-    ptr: &'a [u8],
-}
+pub struct EncStr([()]);
+// #[derive(Copy, Clone, PartialEq, Eq, Hash)]
+// pub struct EncStr<'a> {
+//     enc: Enc,
+//     ptr: &'a [u8],
+// }
 
-impl<'a> EncStr<'a> {
+const PACK_SIZE: usize = Enc::max_discrim().next_power_of_two();
+const PACK_OFFSET: u32 = PACK_SIZE.ilog2();
+
+impl EncStr {
     /// Create a new, empty [`EncStr`] of the specified encoding.
-    pub fn empty(encoding: Enc) -> EncStr<'a> {
-        EncStr {
-            enc: encoding,
-            ptr: &[],
-        }
+    pub fn empty(encoding: Enc) -> &'static EncStr {
+        unsafe { Self::from_bytes_unchecked(encoding, &[]) }
     }
 
     /// Create an `EncStr` from a byte slice without checking whether it is valid for the provided
@@ -140,28 +142,34 @@ impl<'a> EncStr<'a> {
     /// # Safety
     ///
     /// The bytes passed must be valid for the provided encoding.
-    pub fn from_bytes(encoding: Enc, bytes: &[u8]) -> Result<EncStr<'_>, ValidateError> {
+    pub fn from_bytes(encoding: Enc, bytes: &[u8]) -> Result<&EncStr, ValidateError> {
         encoding.validate(bytes)?;
         Ok(unsafe { Self::from_bytes_unchecked(encoding, bytes) })
     }
 
     /// Create an `EncStr` from a byte slice, validating the encoding and returning a
     /// [`ValidateError`] if it is not a valid string in the provided encoding.
-    pub unsafe fn from_bytes_unchecked(encoding: Enc, bytes: &[u8]) -> EncStr<'_> {
-        EncStr {
-            enc: encoding,
-            ptr: bytes,
-        }
+    pub unsafe fn from_bytes_unchecked(encoding: Enc, bytes: &[u8]) -> &EncStr {
+        assert!(
+            bytes.len() <= (usize::MAX >> PACK_OFFSET),
+            "String too long - dynamically encoded strings must have enough free high bits to fit {} possible encodings.",
+            PACK_SIZE,
+        );
+        // Length of slice:
+        let len = ((encoding as u8 as usize) << (usize::BITS - PACK_OFFSET)) + bytes.len();
+        let slice = unsafe { slice::from_raw_parts(bytes.as_ptr().cast::<()>(), len) };
+        let ptr = ptr::from_ref(slice) as *const EncStr;
+        unsafe { &*ptr }
     }
 
     /// Get the dynamic encoding of this string
     pub fn encoding(&self) -> Enc {
-        self.enc
+        unsafe { Enc::try_from(self.0.len() >> (usize::BITS - PACK_OFFSET)).unwrap_unchecked() }
     }
 
     /// Get the length of this string in bytes
     pub fn len(&self) -> usize {
-        self.as_bytes().len()
+        self.0.len() & (usize::MAX >> PACK_OFFSET)
     }
 
     /// Whether this string is empty - IE is a zero-length slice.
@@ -170,17 +178,17 @@ impl<'a> EncStr<'a> {
     }
 
     /// Get the underlying bytes for this string
-    pub fn as_bytes(&self) -> &'a [u8] {
-        self.ptr
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe { slice::from_raw_parts(ptr::from_ref(&self.0).cast::<u8>(), self.len()) }
     }
 
     /// Return an iterator over the [`char`]s of this string slice. See [`str::chars`] for caveats
     /// about this method.
-    pub fn chars(self) -> Chars<'a> {
+    pub fn chars(&self) -> Chars<'_> {
         Chars::new(self)
     }
 
-    fn check_bounds<R>(self, idx: &R) -> Option<()>
+    fn check_bounds<R>(&self, idx: &R) -> Option<()>
     where
         R: RangeBounds<usize>,
     {
@@ -208,14 +216,14 @@ impl<'a> EncStr<'a> {
 
     /// Return a subslice of this `EncStr`. This is a non-panicking alternative to indexing,
     /// returning [`None`] whenever indexing would panic.
-    pub fn get<R>(self, idx: R) -> Option<Self>
+    pub fn get<R>(&self, idx: R) -> Option<&Self>
     where
         R: RangeBounds<usize> + SliceIndex<[u8], Output = [u8]>,
     {
         self.check_bounds(&idx)?;
         // SAFETY: The provided range has been validated as landing on character boundaries.
         //         Our internal bytes are guaranteed valid for the encoding.
-        Some(unsafe { EncStr::from_bytes_unchecked(self.enc, self.as_bytes().get(idx)?) })
+        Some(unsafe { EncStr::from_bytes_unchecked(self.encoding(), self.as_bytes().get(idx)?) })
     }
 
     /// Return a subslice of this `EncStr`, without bound checks.
@@ -224,12 +232,12 @@ impl<'a> EncStr<'a> {
     ///
     /// - The caller must ensure the range indices are in-bounds of the string byte length
     /// - The caller must ensure neither the range indices do not fall in the middle of a character
-    pub unsafe fn get_unchecked<R>(self, idx: R) -> Self
+    pub unsafe fn get_unchecked<R>(&self, idx: R) -> &Self
     where
         R: RangeBounds<usize> + SliceIndex<[u8], Output = [u8]>,
     {
         // SAFETY: Delegated to caller
-        unsafe { EncStr::from_bytes_unchecked(self.enc, self.as_bytes().get_unchecked(idx)) }
+        unsafe { EncStr::from_bytes_unchecked(self.encoding(), self.as_bytes().get_unchecked(idx)) }
     }
 
     /// Check whether the byte at `idx` is on a character boundary - IE is the first byte in a code
@@ -237,29 +245,29 @@ impl<'a> EncStr<'a> {
     ///
     /// The start and end of the string are considered boundaries, indexes greater than `self.len()`
     /// are considered not boundaries.
-    pub fn is_char_boundary(self, idx: usize) -> bool {
+    pub fn is_char_boundary(&self, idx: usize) -> bool {
         match idx.cmp(&self.len()) {
             Ordering::Equal => true,
             Ordering::Greater => false,
-            Ordering::Less => unsafe { self.enc.char_bound_unchecked(self, idx) },
+            Ordering::Less => unsafe { self.encoding().char_bound_unchecked(self, idx) },
         }
     }
 
     /// Return an iterator over the [`char`]s of this string slice and their positions. See
     /// [`str::char_indices`] for caveats about this method.
-    pub fn char_indices(self) -> CharIndices<'a> {
+    pub fn char_indices(&self) -> CharIndices<'_> {
         CharIndices::new(self)
     }
 
     /// Split this string at an index, returning the two substrings on either side. This method
     /// panics if the index doesn't lie on a character boundary.
-    pub fn split_at(self, idx: usize) -> Option<(EncStr<'a>, EncStr<'a>)> {
+    pub fn split_at(&self, idx: usize) -> Option<(&EncStr, &EncStr)> {
         if self.is_char_boundary(idx) && idx < self.len() {
             let (start, end) = self.as_bytes().split_at(idx);
             // SAFETY: Index is a character boundary. Internal data guaranteed valid.
-            let start = unsafe { EncStr::from_bytes_unchecked(self.enc, start) };
+            let start = unsafe { EncStr::from_bytes_unchecked(self.encoding(), start) };
             // SAFETY: Index is a character boundary. Internal data guaranteed valid.
-            let end = unsafe { EncStr::from_bytes_unchecked(self.enc, end) };
+            let end = unsafe { EncStr::from_bytes_unchecked(self.encoding(), end) };
             Some((start, end))
         } else {
             None
@@ -268,11 +276,11 @@ impl<'a> EncStr<'a> {
 
     /// Get this `Str` in a different [`Encoding`]. This method writes the new string into the
     /// provided buffer, and returns the portion of the buffer containing the string as a new `Str`.
-    pub fn recode_into(
-        self,
+    pub fn recode_into<'a>(
+        &self,
         encoding: Enc,
-        buffer: &mut [u8],
-    ) -> Result<EncStr<'_>, RecodeIntoError<'_>> {
+        buffer: &'a mut [u8],
+    ) -> Result<&'a EncStr, RecodeIntoError<'a>> {
         encoding
             .recode(self, buffer)
             .map(|len| {
@@ -294,7 +302,7 @@ impl<'a> EncStr<'a> {
     /// with the desired encoding, and returns an error if the source string contains any characters
     /// that cannot be represented in the destination encoding.
     #[cfg(feature = "alloc")]
-    pub fn recode(self, encoding: Enc) -> Result<EncString, RecodeError> {
+    pub fn recode(&self, encoding: Enc) -> Result<EncString, RecodeError> {
         let mut ptr = self;
         let mut total_len = 0;
         let mut out = vec![0; self.as_bytes().len()];
@@ -328,7 +336,7 @@ impl<'a> EncStr<'a> {
     /// desired encoding, replacing any characters that can't be represented in the destination
     /// encoding with the encoding's replacement character.
     #[cfg(feature = "alloc")]
-    pub fn recode_lossy(self, encoding: Enc) -> EncString {
+    pub fn recode_lossy(&self, encoding: Enc) -> EncString {
         let mut ptr = self;
         let mut total_len = 0;
         let mut out = vec![0; self.as_bytes().len()];
@@ -365,9 +373,9 @@ impl<'a> EncStr<'a> {
 
     /// Attempt to convert this into a [`Str`] with a specified encoding. Returns `None` if the
     /// encoding of this string doesn't match the desired encoding.
-    pub fn downcast<E: Encoding>(&self) -> Option<&'a Str<E>> {
-        if self.enc == Enc::of::<E>() {
-            Some(unsafe { Str::from_bytes_unchecked(self.ptr) })
+    pub fn downcast<E: Encoding>(&self) -> Option<&'_ Str<E>> {
+        if self.encoding() == Enc::of::<E>() {
+            Some(unsafe { Str::from_bytes_unchecked(self.as_bytes()) })
         } else {
             None
         }
@@ -379,30 +387,44 @@ impl<'a> EncStr<'a> {
     /// # Safety
     ///
     /// This string's encoding must be the same as the provided `E`.
-    pub unsafe fn downcast_unchecked<E: Encoding>(&self) -> &'a Str<E> {
-        unsafe { Str::from_bytes_unchecked(self.ptr) }
+    pub unsafe fn downcast_unchecked<E: Encoding>(&self) -> &'_ Str<E> {
+        unsafe { Str::from_bytes_unchecked(self.as_bytes()) }
     }
 }
 
-impl<'a, E: Encoding> From<&'a Str<E>> for EncStr<'a> {
+impl PartialEq for EncStr {
+    fn eq(&self, other: &Self) -> bool {
+        self.encoding() == other.encoding() && self.as_bytes() == other.as_bytes()
+    }
+}
+
+impl Eq for EncStr {}
+
+impl<'a, E: Encoding> From<&'a Str<E>> for &'a EncStr {
     fn from(value: &'a Str<E>) -> Self {
-        EncStr {
-            enc: Enc::of::<E>(),
-            ptr: value.as_bytes(),
-        }
+        unsafe { EncStr::from_bytes_unchecked(Enc::of::<E>(), value.as_bytes()) }
     }
 }
 
-impl<'a, E: Encoding> TryFrom<EncStr<'a>> for &'a Str<E> {
+impl<'a, E: Encoding> TryFrom<&'a EncStr> for &'a Str<E> {
     type Error = EncodingMismatch;
 
-    fn try_from(value: EncStr<'a>) -> Result<Self, Self::Error> {
+    fn try_from(value: &'a EncStr) -> Result<Self, Self::Error> {
         value.downcast().ok_or(EncodingMismatch)
     }
 }
 
-impl fmt::Debug for EncStr<'_> {
+impl fmt::Debug for EncStr {
     fn fmt(&self, _f: &mut Formatter<'_>) -> fmt::Result {
+        todo!()
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl ToOwned for EncStr {
+    type Owned = EncString;
+
+    fn to_owned(&self) -> Self::Owned {
         todo!()
     }
 }

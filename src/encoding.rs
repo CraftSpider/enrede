@@ -175,6 +175,7 @@ macro_rules! enc {
         /// Enumeration of all supported string encodings. Supports most encoding operations
         #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
         #[non_exhaustive]
+        #[repr(u8)]
         pub enum Enc {
             $(
             #[doc = concat!("See [`", stringify!($encoding), "`]")]
@@ -186,6 +187,12 @@ macro_rules! enc {
             /// Get the [`Enc`] value for the provided encoding
             pub fn of<E: Encoding>() -> Enc {
                 E::dyn_enc()
+            }
+
+            pub(crate) const fn max_discrim() -> usize {
+                let mut a = 0;
+                $( stringify!($encoding); a += 1; )*
+                a
             }
 
             #[allow(unused)]
@@ -228,7 +235,7 @@ macro_rules! enc {
 
             /// Given a string in another encoding, re-encode it into this encoding character by character.
             /// On success, returns the length of the output that was written.
-            pub fn recode(self, str: crate::EncStr<'_>, out: &mut [u8]) -> Result<usize, RecodeError> {
+            pub fn recode(self, str: &crate::EncStr, out: &mut [u8]) -> Result<usize, RecodeError> {
                 str.char_indices().try_fold(0, |out_pos, (idx, c)| {
                     match self.encode(c, &mut out[out_pos..]) {
                         Ok(len) => Ok(out_pos + len),
@@ -255,7 +262,7 @@ macro_rules! enc {
                 }
             }
 
-            pub(crate) unsafe fn decode_char_unchecked(self, str: crate::EncStr<'_>) -> (char, crate::EncStr<'_>) {
+            pub(crate) unsafe fn decode_char_unchecked(self, str: &crate::EncStr) -> (char, &crate::EncStr) {
                 match self {
                     $(
                     Self::$encoding => {
@@ -266,7 +273,7 @@ macro_rules! enc {
                 }
             }
 
-            pub(crate) unsafe fn char_bound_unchecked(self, str: crate::EncStr<'_>, idx: usize) -> bool {
+            pub(crate) unsafe fn char_bound_unchecked(self, str: &crate::EncStr, idx: usize) -> bool {
                 match self {
                     $(
                     Self::$encoding => $encoding::char_bound(str.downcast_unchecked(), idx)
@@ -280,6 +287,24 @@ macro_rules! enc {
                     Self::$encoding => $encoding::char_len(c)
                     ),*
                 }
+            }
+        }
+
+        impl TryFrom<usize> for Enc {
+            type Error = ();
+
+            #[allow(non_upper_case_globals)]
+            fn try_from(value: usize) -> Result<Self, Self::Error> {
+                $(
+                const $encoding: usize = Enc::$encoding as u8 as usize;
+                )*
+
+                Ok(match value {
+                    $(
+                    $encoding => Self::$encoding,
+                    )*
+                    _ => return Err(()),
+                })
             }
         }
     }
