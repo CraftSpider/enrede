@@ -1,5 +1,5 @@
 use crate::encoding::sealed::Sealed;
-use crate::encoding::{NullTerminable, ValidateError};
+use crate::encoding::{Enc, NullTerminable, ValidateError};
 use crate::{Encoding, Str};
 #[cfg(feature = "rand")]
 use rand::{distr::Distribution, Rng};
@@ -14,7 +14,7 @@ const DECODE_MAP_8859_1: [char; 96] = [
 ];
 
 /// The [ISO/IEC 8859-1](https://en.wikipedia.org/wiki/ISO/IEC_8859-1) encoding.
-/// 
+///
 /// All ISO encodings include the C0 control plane.
 #[non_exhaustive]
 #[derive(Default)]
@@ -29,6 +29,10 @@ impl Encoding for Iso8859_1 {
 
     fn shorthand() -> &'static str {
         "iso8859_1"
+    }
+
+    fn dyn_enc() -> Enc {
+        Enc::Iso8859_1
     }
 
     fn validate(bytes: &[u8]) -> Result<(), ValidateError> {

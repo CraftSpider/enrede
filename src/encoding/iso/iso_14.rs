@@ -1,5 +1,5 @@
 use crate::encoding::sealed::Sealed;
-use crate::encoding::{NullTerminable, ValidateError};
+use crate::encoding::{Enc, NullTerminable, ValidateError};
 use crate::{Encoding, Str};
 #[cfg(feature = "rand")]
 use rand::{distr::Distribution, Rng};
@@ -29,6 +29,10 @@ impl Encoding for Iso8859_14 {
 
     fn shorthand() -> &'static str {
         "iso8859_14"
+    }
+
+    fn dyn_enc() -> Enc {
+        Enc::Iso8859_14
     }
 
     fn validate(bytes: &[u8]) -> Result<(), ValidateError> {
