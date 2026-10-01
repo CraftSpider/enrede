@@ -14,6 +14,8 @@ const DECODE_MAP_8859_1: [char; 96] = [
 ];
 
 /// The [ISO/IEC 8859-1](https://en.wikipedia.org/wiki/ISO/IEC_8859-1) encoding.
+/// 
+/// All ISO encodings include the C0 control plane.
 #[non_exhaustive]
 #[derive(Default)]
 pub struct Iso8859_1;
@@ -89,4 +91,33 @@ impl Distribution<char> for Iso8859_1 {
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_encode() {
+        assert_eq!(Iso8859_1::encode_char('¡'), Some(0xA1));
+        assert_eq!(Iso8859_1::encode_char('£'), Some(0xA3));
+        assert_eq!(Iso8859_1::encode_char('×'), Some(0xD7));
+        assert_eq!(Iso8859_1::encode_char('÷'), Some(0xF7));
+    }
+
+    const HELLO_WORLD_ISO1: &[u8] = b"\xA1\xA36\xD7\xF7A";
+
+    #[test]
+    fn test_decode() {
+        let s = unsafe { Str::from_bytes_unchecked(HELLO_WORLD_ISO1) };
+        let (char, s) = Iso8859_1::decode_char(s);
+        assert_eq!(char, '¡');
+        let (char, s) = Iso8859_1::decode_char(s);
+        assert_eq!(char, '£');
+        let (char, s) = Iso8859_1::decode_char(s);
+        assert_eq!(char, '6');
+        let (char, s) = Iso8859_1::decode_char(s);
+        assert_eq!(char, '×');
+        let (char, s) = Iso8859_1::decode_char(s);
+        assert_eq!(char, '÷');
+        let (char, _) = Iso8859_1::decode_char(s);
+        assert_eq!(char, 'A');
+    }
+}

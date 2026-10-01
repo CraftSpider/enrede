@@ -14,6 +14,8 @@ const DECODE_MAP_8859_14: [char; 96] = [
 ];
 
 /// The [ISO/IEC 8859-14](https://en.wikipedia.org/wiki/ISO/IEC_8859-14) encoding.
+///
+/// All ISO encodings include the C0 control plane.
 #[non_exhaustive]
 #[derive(Default)]
 pub struct Iso8859_14;

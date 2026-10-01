@@ -14,6 +14,8 @@ const DECODE_MAP_8859_5: [char; 96] = [
 ];
 
 /// The [ISO/IEC 8859-5](https://en.wikipedia.org/wiki/ISO/IEC_8859-5) encoding.
+///
+/// All ISO encodings include the C0 control plane.
 #[non_exhaustive]
 #[derive(Default)]
 pub struct Iso8859_5;
