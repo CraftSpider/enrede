@@ -1,9 +1,10 @@
 //! Definitions for errors that are used across multiple modules
 
 use crate::encoding;
-use crate::encoding::RecodeCause;
+use crate::encoding::{Enc, RecodeCause};
 use core::error::Error;
 use core::fmt;
+use core::fmt::Formatter;
 
 /// Error encountered while re-encoding a [`Str`](crate::Str) or [`CStr`](crate::CStr) into another
 /// format
@@ -101,3 +102,37 @@ impl<S: ?Sized> fmt::Display for RecodeIntoError<'_, S> {
 }
 
 impl<S: ?Sized + fmt::Debug> Error for RecodeIntoError<'_, S> {}
+
+/// Error returned when an operation is performed on a [`EncStr`] that requires one encoding but
+/// a different one is found.
+#[derive(Clone, Debug)]
+#[non_exhaustive]
+pub struct EncodingMismatch {
+    pub(crate) found: Enc,
+    pub(crate) expected: Enc,
+}
+
+impl EncodingMismatch {
+    /// The encoding that was actually found during the operation
+    pub fn found(&self) -> Enc {
+        self.found
+    }
+
+    /// The encoding that was expected
+    pub fn expected(&self) -> Enc {
+        self.expected
+    }
+}
+
+impl fmt::Display for EncodingMismatch {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Encoding mismatch - expected encoding {} but found {} instead",
+            self.expected.shorthand(),
+            self.found.shorthand()
+        )
+    }
+}
+
+impl Error for EncodingMismatch {}

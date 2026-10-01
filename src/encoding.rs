@@ -6,6 +6,7 @@
 //! as [`Encoding::encode`].
 
 use crate::str::Str;
+use crate::utils::IntoAV;
 use arrayvec::ArrayVec;
 use core::error::Error;
 use core::{fmt, slice};
@@ -142,38 +143,10 @@ pub trait NullTerminable: Encoding {}
 /// encoding will never fail.
 pub trait AlwaysValid: Encoding {}
 
-trait IntoAV {
-    fn into_av(self) -> ArrayVec<u8, 4>;
-}
-
-impl IntoAV for u8 {
-    fn into_av(self) -> ArrayVec<u8, 4> {
-        ArrayVec::from_iter([self])
-    }
-}
-
-impl IntoAV for [u8; 4] {
-    fn into_av(self) -> ArrayVec<u8, 4> {
-        ArrayVec::from(self)
-    }
-}
-
-impl IntoAV for ArrayVec<u8, 2> {
-    fn into_av(self) -> ArrayVec<u8, 4> {
-        ArrayVec::from_iter(self)
-    }
-}
-
-impl IntoAV for ArrayVec<u8, 4> {
-    fn into_av(self) -> ArrayVec<u8, 4> {
-        self
-    }
-}
-
 macro_rules! enc {
     ($($encoding:ident),* $(,)?) => {
         /// Enumeration of all supported string encodings. Supports most encoding operations
-        #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+        #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
         #[non_exhaustive]
         #[repr(u8)]
         pub enum Enc {
@@ -187,6 +160,16 @@ macro_rules! enc {
             /// Get the [`Enc`] value for the provided encoding
             pub fn of<E: Encoding>() -> Enc {
                 E::dyn_enc()
+            }
+
+            #[cfg(test)]
+            pub(crate) fn all() -> impl Iterator<Item = Enc> {
+                [$(Self::$encoding),*].into_iter()
+            }
+
+            #[cfg(test)]
+            pub(crate) fn all_dyn() -> impl Iterator<Item = Enc> {
+                [$($encoding::dyn_enc()),*].into_iter()
             }
 
             pub(crate) const fn max_discrim() -> usize {
@@ -349,12 +332,6 @@ enc!(
     Utf32BE,
 );
 
-impl<E: Encoding> From<E> for Enc {
-    fn from(_: E) -> Self {
-        E::dyn_enc()
-    }
-}
-
 /// An error encountered while validating a byte stream for a certain encoding.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ValidateError {
@@ -479,3 +456,30 @@ impl fmt::Display for RecodeError {
 }
 
 impl Error for RecodeError {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use alloc::collections::BTreeSet;
+
+    #[test]
+    fn unique_shorthands() {
+        let mut set = BTreeSet::new();
+        for e in Enc::all() {
+            let short = e.shorthand();
+            if !set.insert(short) {
+                panic!("Duplicate encoding shorthand {short}. All encodings should have a unique shorthand.")
+            }
+        }
+    }
+
+    #[test]
+    fn unique_dyn() {
+        let mut set = BTreeSet::new();
+        for e in Enc::all_dyn() {
+            if !set.insert(e) {
+                panic!("Variant for shorthand {} returned by multiple encoding implementations. All encodings should return a unique variant.", e.shorthand())
+            }
+        }
+    }
+}

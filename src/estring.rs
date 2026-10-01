@@ -1,9 +1,10 @@
 //! Implementation and utilities for a dynamically encoded [`std::String`](std::string::String)
 //! equivalent type.
 
-use crate::encoding::{ArrayLike, Enc};
+use crate::encoding::{ArrayLike, Enc, Utf8};
+use crate::errors::EncodingMismatch;
 use crate::string::{InvalidChar, OwnValidateError};
-use crate::{EncStr, Encoding, String};
+use crate::{EncStr, Encoding, Str, String};
 use alloc::borrow::{Cow, ToOwned};
 use alloc::string::String as StdString;
 use alloc::vec::Vec;
@@ -42,6 +43,7 @@ impl EncString {
     ///
     /// The bytes passed must be valid for the current encoding.
     pub unsafe fn from_bytes_unchecked(encoding: Enc, bytes: Vec<u8>) -> EncString {
+        debug_assert!(encoding.validate(&bytes).is_ok());
         EncString(encoding, bytes)
     }
 
@@ -124,6 +126,26 @@ impl EncString {
         }
     }
 
+    /// Attempt to convert this into a [`String`] with a specified encoding. Returns `Err` if the
+    /// encoding of this string doesn't match the desired encoding.
+    pub fn downcast<E: Encoding>(self) -> Result<String<E>, Self> {
+        if self.encoding() == Enc::of::<E>() {
+            Ok(unsafe { String::from_bytes_unchecked(self.into_bytes()) })
+        } else {
+            Err(self)
+        }
+    }
+
+    /// Convert this into a [`String`] with the specified encoding, without checking if the encodings
+    /// match.
+    ///
+    /// # Safety
+    ///
+    /// This string's encoding must be the same as the provided `E`.
+    pub unsafe fn downcast_unchecked<E: Encoding>(self) -> String<E> {
+        unsafe { String::from_bytes_unchecked(self.into_bytes()) }
+    }
+
     // UTF-8 methods
 
     /// Convert an [`std::String`](std::string::String) directly into an [`EncString`]
@@ -194,6 +216,12 @@ impl BorrowMut<EncStr> for EncString {
     }
 }
 
+impl From<&EncStr> for EncString {
+    fn from(value: &EncStr) -> Self {
+        EncStr::to_owned(value)
+    }
+}
+
 impl From<&str> for EncString {
     fn from(value: &str) -> Self {
         EncStr::from_std(value).to_owned()
@@ -206,8 +234,39 @@ impl From<StdString> for EncString {
     }
 }
 
+impl<E: Encoding> From<&Str<E>> for EncString {
+    fn from(value: &Str<E>) -> Self {
+        <&EncStr>::from(value).to_owned()
+    }
+}
+
 impl<E: Encoding> From<String<E>> for EncString {
     fn from(value: String<E>) -> Self {
         unsafe { EncString::from_bytes_unchecked(Enc::of::<E>(), value.into_bytes()) }
+    }
+}
+
+impl<E: Encoding> TryFrom<EncString> for String<E> {
+    type Error = EncodingMismatch;
+
+    fn try_from(value: EncString) -> Result<Self, Self::Error> {
+        value.downcast().map_err(|val| EncodingMismatch {
+            found: val.encoding(),
+            expected: Enc::of::<E>(),
+        })
+    }
+}
+
+impl TryFrom<EncString> for StdString {
+    type Error = EncodingMismatch;
+
+    fn try_from(value: EncString) -> Result<Self, Self::Error> {
+        value
+            .downcast::<Utf8>()
+            .map(String::into_std)
+            .map_err(|val| EncodingMismatch {
+                found: val.encoding(),
+                expected: Enc::Utf8,
+            })
     }
 }

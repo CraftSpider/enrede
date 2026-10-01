@@ -5,6 +5,7 @@
 #[cfg(feature = "alloc")]
 use crate::encoding::RecodeCause;
 use crate::encoding::{Enc, ValidateError};
+use crate::errors::EncodingMismatch;
 #[cfg(feature = "alloc")]
 use crate::estring::EncString;
 use crate::{Encoding, Str};
@@ -14,10 +15,9 @@ use alloc::borrow::ToOwned;
 use alloc::vec;
 use bytemuck::cast_slice;
 use core::cmp::Ordering;
-use core::error::Error;
 use core::fmt::{Formatter, Write};
 use core::hash::{Hash, Hasher};
-use core::ops::{Bound, Index, RangeBounds};
+use core::ops::{Bound, Index, IndexMut, RangeBounds};
 use core::slice::SliceIndex;
 use core::{fmt, ptr, slice};
 
@@ -42,15 +42,20 @@ pub use iter::*;
 /// Constructing non-`Enc` string slices is not immediate UB, but any function called on it may
 /// assume that it is valid.
 ///
-/// ## Soundness Caveat
+/// ## Caveats
 ///
-/// The implementation of `EncStr` is valid under tree borrows, but not stacked borrows. If you
+/// - The implementation of `EncStr` is valid under tree borrows, but not stacked borrows. If you
 /// don't know what this means, you probably don't have to worry about it.
 ///
 /// This is because EncStr relies on the header pattern - creating a reference with a smaller
 /// accessible range then converting it back to the longer range later. This has been deemed a
 /// desirable pattern, so is likely to be possible in any future borrow model that is chosen.
 ///
+/// - `Box<EncStr>` shouldn't be used.
+///
+/// Related to the header pattern above, the box will think that the backing allocation is
+/// zero-sized. This won't lead to frees with mismatched layout, but no free at all, leaking the
+/// backing memory. As such, no safe methods exist to create such a type.
 pub struct EncStr([()]);
 
 const PACK_SIZE: usize = Enc::max_discrim().next_power_of_two();
@@ -65,6 +70,7 @@ impl EncStr {
     /// Create an `EncStr` from a mutable byte slice, validating the encoding and returning a
     /// [`ValidateError`] if it is not a valid string in the provided encoding.
     pub unsafe fn from_bytes_unchecked(encoding: Enc, bytes: &[u8]) -> &EncStr {
+        debug_assert!(encoding.validate(&bytes).is_ok());
         assert!(
             bytes.len() <= (usize::MAX >> PACK_OFFSET),
             "String too long - dynamically encoded strings must have enough free high bits to fit {} possible encodings.",
@@ -80,6 +86,7 @@ impl EncStr {
     /// Create an `EncStr` from a byte slice, validating the encoding and returning a
     /// [`ValidateError`] if it is not a valid string in the provided encoding.
     pub unsafe fn from_bytes_unchecked_mut(encoding: Enc, bytes: &mut [u8]) -> &mut EncStr {
+        debug_assert!(encoding.validate(&bytes).is_ok());
         assert!(
             bytes.len() <= (usize::MAX >> PACK_OFFSET),
             "String too long - dynamically encoded strings must have enough free high bits to fit {} possible encodings.",
@@ -150,8 +157,8 @@ impl EncStr {
         };
 
         let end_idx = match end {
-            Bound::Included(i) => *i,
-            Bound::Excluded(i) => *i - 1,
+            Bound::Included(i) => *i + 1,
+            Bound::Excluded(i) => *i,
             Bound::Unbounded => self.as_bytes().len(),
         };
 
@@ -247,7 +254,7 @@ impl EncStr {
     }
 
     /// Split this string at an index, returning the two substrings on either side. This method
-    /// panics if the index doesn't lie on a character boundary.
+    /// returns `None` if the index doesn't lie on a character boundary.
     pub fn split_at(&self, idx: usize) -> Option<(&EncStr, &EncStr)> {
         if self.is_char_boundary(idx) && idx < self.len() {
             let (start, end) = self.as_bytes().split_at(idx);
@@ -262,7 +269,7 @@ impl EncStr {
     }
 
     /// Split this string mutably at an index, returning the two substrings on either side. This
-    /// method panics if the index doesn't lie on a character boundary.
+    /// method returns `None` if the index doesn't lie on a character boundary.
     pub fn split_at_mut(&mut self, idx: usize) -> Option<(&mut EncStr, &mut EncStr)> {
         if self.is_char_boundary(idx) && idx < self.len() {
             let encoding = self.encoding();
@@ -520,6 +527,16 @@ where
     }
 }
 
+impl<R> IndexMut<R> for EncStr
+where
+    R: RangeBounds<usize> + SliceIndex<[u8], Output = [u8]>,
+{
+    fn index_mut(&mut self, index: R) -> &mut Self::Output {
+        self.get_mut(index)
+            .expect("Attempted to slice string at non-character boundary")
+    }
+}
+
 impl PartialEq for EncStr {
     fn eq(&self, other: &Self) -> bool {
         self.encoding() == other.encoding() && self.as_bytes() == other.as_bytes()
@@ -563,10 +580,24 @@ impl<'a, E: Encoding> TryFrom<&'a EncStr> for &'a Str<E> {
     type Error = EncodingMismatch;
 
     fn try_from(value: &'a EncStr) -> Result<Self, Self::Error> {
-        value.downcast().ok_or(EncodingMismatch {
+        value.downcast().ok_or_else(|| EncodingMismatch {
             found: value.encoding(),
             expected: Enc::of::<E>(),
         })
+    }
+}
+
+impl<'a> TryFrom<&'a EncStr> for &'a str {
+    type Error = EncodingMismatch;
+
+    fn try_from(value: &'a EncStr) -> Result<Self, Self::Error> {
+        value
+            .downcast()
+            .map(Str::as_std)
+            .ok_or_else(|| EncodingMismatch {
+                found: value.encoding(),
+                expected: Enc::Utf8,
+            })
     }
 }
 
@@ -576,44 +607,80 @@ impl<'a> From<&'a str> for &'a EncStr {
     }
 }
 
-/// Error returned when an operation is performed on a [`EncStr`] that requires one encoding but
-/// a different one is found.
-#[derive(Debug)]
-#[non_exhaustive]
-pub struct EncodingMismatch {
-    found: Enc,
-    expected: Enc,
-}
-
-impl EncodingMismatch {
-    /// The encoding that was actually found during the operation
-    pub fn found(&self) -> Enc {
-        self.found
-    }
-
-    /// The encoding that was expected
-    pub fn expected(&self) -> Enc {
-        self.expected
+impl<'a> From<&'a [char]> for &'a EncStr {
+    fn from(value: &'a [char]) -> Self {
+        EncStr::from_chars(value)
     }
 }
-
-impl fmt::Display for EncodingMismatch {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "Encoding mismatch - expected encoding {} but found {} instead",
-            self.expected.shorthand(),
-            self.found.shorthand()
-        )
-    }
-}
-
-impl Error for EncodingMismatch {}
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use alloc::vec::Vec;
+
+    #[test]
+    fn test_len() {
+        let a = EncStr::from_std("a");
+        assert_eq!(a.len(), 1);
+
+        let b = EncStr::from_std("abc123");
+        assert_eq!(b.len(), 6);
+    }
+
+    #[test]
+    fn test_encoding() {
+        let a = EncStr::from_std("abc");
+        assert_eq!(a.encoding(), Enc::Utf8);
+
+        let b = EncStr::from_chars(&['a', 'b', 'c']);
+        assert_eq!(
+            b.encoding(),
+            if cfg!(target_endian = "little") {
+                Enc::Utf32LE
+            } else {
+                Enc::Utf32BE
+            }
+        );
+    }
+
+    #[test]
+    fn test_get() {
+        let s = EncStr::from_std("abcd");
+        assert_eq!(s.get(0..1), Some(EncStr::from_std("a")));
+        assert_eq!(s.get(3..4), Some(EncStr::from_std("d")));
+
+        assert_eq!(s.get(0..2), Some(EncStr::from_std("ab")));
+        assert_eq!(s.get(2..4), Some(EncStr::from_std("cd")));
+
+        assert_eq!(s.get(0..0), Some(EncStr::empty(Enc::Utf8)));
+        assert_eq!(s.get(0..100), None);
+
+        let s = EncStr::from_std("€𐐷b");
+        assert_eq!(s.get(0..3), Some(EncStr::from_std("€")));
+        assert_eq!(s.get(3..7), Some(EncStr::from_std("𐐷")));
+        assert_eq!(s.get(7..8), Some(EncStr::from_std("b")));
+
+        assert_eq!(s.get(0..7), Some(EncStr::from_std("€𐐷")));
+        assert_eq!(s.get(3..8), Some(EncStr::from_std("𐐷b")));
+
+        assert_eq!(s.get(0..1), None);
+        assert_eq!(s.get(1..3), None);
+        assert_eq!(s.get(1..5), None);
+        assert_eq!(s.get(0..100), None);
+        assert_eq!(s.get(1..1), None);
+    }
+
+    #[test]
+    fn test_empty() {
+        let s = EncStr::empty(Enc::Ascii);
+        assert_eq!(s.len(), 0);
+
+        let s = EncStr::empty(Enc::Utf8);
+        assert_eq!(s.len(), 0);
+
+        let s = EncStr::empty(Enc::Utf32BE);
+        assert_eq!(s.len(), 0);
+    }
 
     #[test]
     fn test_std_roundtrip() {

@@ -307,3 +307,23 @@ impl<E: NullTerminable> From<CString<E>> for alloc::ffi::CString {
         value.into_std()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::encoding::Utf8;
+    use core::assert_matches;
+
+    #[test]
+    fn test_new() {
+        let c = CString::<Utf8>::new(b"Hello World!").unwrap();
+
+        assert_eq!(c.as_str(), "Hello World!");
+
+        let e = CString::<Utf8>::new(b"Invalid\0Null byte").unwrap_err();
+        assert_eq!(*e.cause(), CStringErrorCause::HasNull { idx: 7 });
+
+        let e = CString::<Utf8>::new(b"Invalid \xc3\x28 UTF-8").unwrap_err();
+        assert_matches!(*e.cause(), CStringErrorCause::Invalid(_));
+    }
+}
