@@ -6,6 +6,7 @@
 //! as [`Encoding::encode`].
 
 use crate::str::Str;
+use crate::utils::IntoAV;
 use arrayvec::ArrayVec;
 use core::error::Error;
 use core::{fmt, slice};
@@ -66,6 +67,9 @@ pub trait Encoding: Default + Sealed {
 
     #[doc(hidden)]
     fn shorthand() -> &'static str;
+
+    #[doc(hidden)]
+    fn dyn_enc() -> Enc;
 
     /// Given a byte slice, determine whether it is valid for the current encoding.
     fn validate(bytes: &[u8]) -> Result<(), ValidateError>;
@@ -138,6 +142,195 @@ pub trait NullTerminable: Encoding {}
 /// An encoding for which all bytes are always valid, meaning validation of a byte slice for this
 /// encoding will never fail.
 pub trait AlwaysValid: Encoding {}
+
+macro_rules! enc {
+    ($($encoding:ident),* $(,)?) => {
+        /// Enumeration of all supported string encodings. Supports most encoding operations
+        #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+        #[non_exhaustive]
+        #[repr(u8)]
+        pub enum Enc {
+            $(
+            #[doc = concat!("See [`", stringify!($encoding), "`]")]
+            $encoding,
+            )*
+        }
+
+        impl Enc {
+            /// Get the [`Enc`] value for the provided encoding
+            pub fn of<E: Encoding>() -> Enc {
+                E::dyn_enc()
+            }
+
+            #[cfg(test)]
+            pub(crate) fn all() -> impl Iterator<Item = Enc> {
+                [$(Self::$encoding),*].into_iter()
+            }
+
+            #[cfg(test)]
+            pub(crate) fn all_dyn() -> impl Iterator<Item = Enc> {
+                [$($encoding::dyn_enc()),*].into_iter()
+            }
+
+            pub(crate) const fn max_discrim() -> usize {
+                let mut a = 0;
+                $( stringify!($encoding); a += 1; )*
+                a
+            }
+
+            #[allow(unused)]
+            pub(crate) fn replacement(self) -> char {
+                match self {
+                    $(Self::$encoding => $encoding::REPLACEMENT),*
+                }
+            }
+
+            #[allow(unused)]
+            pub(crate) fn shorthand(self) -> &'static str {
+                match self {
+                    $(Self::$encoding => $encoding::shorthand()),*
+                }
+            }
+
+            /// Given a byte slice, determine whether it is valid for the current encoding.
+            pub fn validate(self, bytes: &[u8]) -> Result<(), ValidateError> {
+                match self {
+                    $(Self::$encoding => $encoding::validate(bytes)),*
+                }
+            }
+
+            /// Take a character and encode it directly into the provided buffer. If successful, returns the
+            /// length of the buffer that was written.
+            pub fn encode(self, char: char, out: &mut [u8]) -> Result<usize, EncodeError> {
+                match self.encode_char(char) {
+                    Some(a) => {
+                        let a = a.slice();
+                        if a.len() > out.len() {
+                            Err(EncodeError::NeedSpace { len: a.len() })
+                        } else {
+                            out[..a.len()].copy_from_slice(a);
+                            Ok(a.len())
+                        }
+                    }
+                    None => Err(EncodeError::InvalidChar),
+                }
+            }
+
+            /// Given a string in another encoding, re-encode it into this encoding character by character.
+            /// On success, returns the length of the output that was written.
+            pub fn recode(self, str: &crate::EncStr, out: &mut [u8]) -> Result<usize, RecodeError> {
+                str.char_indices().try_fold(0, |out_pos, (idx, c)| {
+                    match self.encode(c, &mut out[out_pos..]) {
+                        Ok(len) => Ok(out_pos + len),
+                        Err(e) => Err(RecodeError {
+                            input_used: idx,
+                            output_valid: out_pos,
+                            cause: match e {
+                                EncodeError::NeedSpace { len } => RecodeCause::NeedSpace { len },
+                                EncodeError::InvalidChar => RecodeCause::InvalidChar {
+                                    char: c,
+                                    len: self.char_len(c),
+                                },
+                            },
+                        }),
+                    }
+                })
+            }
+
+            pub(crate) fn encode_char(self, c: char) -> Option<ArrayVec<u8, 4>> {
+                match self {
+                    $(
+                    Self::$encoding => $encoding::encode_char(c).map(IntoAV::into_av)
+                    ),*
+                }
+            }
+
+            pub(crate) unsafe fn decode_char_unchecked(self, str: &crate::EncStr) -> (char, &crate::EncStr) {
+                match self {
+                    $(
+                    Self::$encoding => {
+                        let (c, str) = $encoding::decode_char(str.downcast_unchecked());
+                        (c, str.into())
+                    }
+                    ),*
+                }
+            }
+
+            pub(crate) unsafe fn char_bound_unchecked(self, str: &crate::EncStr, idx: usize) -> bool {
+                match self {
+                    $(
+                    Self::$encoding => $encoding::char_bound(str.downcast_unchecked(), idx)
+                    ),*
+                }
+            }
+
+            pub(crate) fn char_len(self, c: char) -> usize {
+                match self {
+                    $(
+                    Self::$encoding => $encoding::char_len(c)
+                    ),*
+                }
+            }
+        }
+
+        impl TryFrom<usize> for Enc {
+            type Error = ();
+
+            #[allow(non_upper_case_globals)]
+            fn try_from(value: usize) -> Result<Self, Self::Error> {
+                $(
+                const $encoding: usize = Enc::$encoding as u8 as usize;
+                )*
+
+                Ok(match value {
+                    $(
+                    $encoding => Self::$encoding,
+                    )*
+                    _ => return Err(()),
+                })
+            }
+        }
+    }
+}
+
+// This should be kept up-to-date with new [`crate::Encoding`] impls
+enc!(
+    // Basic impls
+    Ascii,
+    ExtendedAscii,
+    // ISO impls
+    Iso8859_1,
+    Iso8859_2,
+    Iso8859_3,
+    Iso8859_4,
+    Iso8859_5,
+    Iso8859_6,
+    Iso8859_7,
+    Iso8859_8,
+    Iso8859_9,
+    Iso8859_10,
+    Iso8859_11,
+    Iso8859_13,
+    Iso8859_14,
+    Iso8859_15,
+    Iso8859_16,
+    // JIS impls
+    JisX0201,
+    JisX0208,
+    ShiftJIS,
+    // Mac impls
+    MacRoman,
+    // Win impls
+    Win1251,
+    Win1252,
+    Win1252Loose,
+    // UTF impls
+    Utf8,
+    Utf16LE,
+    Utf16BE,
+    Utf32LE,
+    Utf32BE,
+);
 
 /// An error encountered while validating a byte stream for a certain encoding.
 #[derive(Clone, Debug, PartialEq)]
@@ -263,3 +456,30 @@ impl fmt::Display for RecodeError {
 }
 
 impl Error for RecodeError {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use alloc::collections::BTreeSet;
+
+    #[test]
+    fn unique_shorthands() {
+        let mut set = BTreeSet::new();
+        for e in Enc::all() {
+            let short = e.shorthand();
+            if !set.insert(short) {
+                panic!("Duplicate encoding shorthand {short}. All encodings should have a unique shorthand.")
+            }
+        }
+    }
+
+    #[test]
+    fn unique_dyn() {
+        let mut set = BTreeSet::new();
+        for e in Enc::all_dyn() {
+            if !set.insert(e) {
+                panic!("Variant for shorthand {} returned by multiple encoding implementations. All encodings should return a unique variant.", e.shorthand())
+            }
+        }
+    }
+}

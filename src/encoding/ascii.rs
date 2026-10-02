@@ -1,5 +1,5 @@
 use crate::encoding::sealed::Sealed;
-use crate::encoding::{AlwaysValid, NullTerminable, ValidateError};
+use crate::encoding::{AlwaysValid, Enc, NullTerminable, ValidateError};
 use crate::{Encoding, Str};
 #[cfg(feature = "rand")]
 use rand::{distr::Distribution, Rng};
@@ -18,6 +18,10 @@ impl Encoding for Ascii {
 
     fn shorthand() -> &'static str {
         "ascii"
+    }
+
+    fn dyn_enc() -> Enc {
+        Enc::Ascii
     }
 
     fn validate(bytes: &[u8]) -> Result<(), ValidateError> {
@@ -83,6 +87,10 @@ impl Encoding for ExtendedAscii {
 
     fn shorthand() -> &'static str {
         "ascii_ext"
+    }
+
+    fn dyn_enc() -> Enc {
+        Enc::ExtendedAscii
     }
 
     fn validate(_: &[u8]) -> Result<(), ValidateError> {

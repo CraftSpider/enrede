@@ -9,6 +9,10 @@ pub mod cstr;
 #[cfg(feature = "alloc")]
 pub mod cstring;
 pub mod encoding;
+pub mod errors;
+pub mod estr;
+#[cfg(feature = "alloc")]
+pub mod estring;
 pub mod str;
 #[cfg(feature = "alloc")]
 pub mod string;
@@ -18,6 +22,9 @@ pub use cstr::CStr;
 #[cfg(feature = "alloc")]
 pub use cstring::CString;
 pub use encoding::Encoding;
+pub use estr::EncStr;
+#[cfg(feature = "alloc")]
+pub use estring::EncString;
 pub use str::Str;
 #[cfg(feature = "alloc")]
 pub use string::String;

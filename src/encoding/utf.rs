@@ -1,5 +1,5 @@
 use crate::encoding::sealed::Sealed;
-use crate::encoding::{Encoding, NullTerminable, ValidateError};
+use crate::encoding::{Enc, Encoding, NullTerminable, ValidateError};
 use crate::str::Str;
 use arrayvec::ArrayVec;
 #[cfg(feature = "rand")]
@@ -19,6 +19,10 @@ impl Encoding for Utf8 {
 
     fn shorthand() -> &'static str {
         "utf8"
+    }
+
+    fn dyn_enc() -> Enc {
+        Enc::Utf8
     }
 
     fn validate(bytes: &[u8]) -> Result<(), ValidateError> {
@@ -107,6 +111,10 @@ macro_rules! utf16_impl {
 
             fn shorthand() -> &'static str {
                 $shorthand
+            }
+
+            fn dyn_enc() -> Enc {
+                Enc::$name
             }
 
             fn validate(bytes: &[u8]) -> Result<(), ValidateError> {
@@ -249,6 +257,10 @@ macro_rules! utf32_impl {
 
             fn shorthand() -> &'static str {
                 $shorthand
+            }
+
+            fn dyn_enc() -> Enc {
+                Enc::$name
             }
 
             fn validate(bytes: &[u8]) -> Result<(), ValidateError> {

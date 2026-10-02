@@ -432,7 +432,7 @@ impl<E: Encoding + NullTerminable> CStr<E> {
     }
 
     /// Split this string at an index, returning the two substrings on either side. This method
-    /// panics if the index doesn't lie on a character boundary. The right-side substring is
+    /// returns `None` if the index doesn't lie on a character boundary. The right-side substring is
     /// returned as a `CStr`, as it retains the trailing null.
     pub fn split_at(&self, idx: usize) -> Option<(&Str<E>, &CStr<E>)> {
         if self.is_char_boundary(idx) && idx < self.len() {
@@ -448,7 +448,7 @@ impl<E: Encoding + NullTerminable> CStr<E> {
     }
 
     /// Split this string mutably at an index, returning the two substrings on either side. This
-    /// method panics if the index doesn't lie on a character boundary. The right-side substring is
+    /// method returns `None` if the index doesn't lie on a character boundary. The right-side substring is
     /// returned as a `CStr`, as it retains the trailing null.
     pub fn split_at_mut(&mut self, idx: usize) -> Option<(&mut Str<E>, &mut CStr<E>)> {
         if self.is_char_boundary(idx) && idx < self.len() {

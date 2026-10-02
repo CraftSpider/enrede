@@ -2,6 +2,7 @@
 //! equivalent type.
 
 use alloc::borrow::{Borrow, BorrowMut, Cow, ToOwned};
+use alloc::boxed::Box;
 use alloc::string::String as StdString;
 use alloc::vec::Vec;
 use core::error::Error;
@@ -16,7 +17,9 @@ use serde::{
 };
 
 use crate::cstring::{CString, NulError};
-use crate::encoding::{AlwaysValid, ArrayLike, Encoding, NullTerminable, Utf8, ValidateError};
+use crate::encoding::{
+    AlwaysValid, ArrayLike, Encoding, NullTerminable, Utf32, Utf8, ValidateError,
+};
 use crate::str::Str;
 
 mod chunks;
@@ -102,6 +105,7 @@ impl<E: Encoding> String<E> {
     ///
     /// The bytes passed must be valid for the current encoding.
     pub unsafe fn from_bytes_unchecked(bytes: Vec<u8>) -> String<E> {
+        debug_assert!(E::validate(&bytes).is_ok(), "");
         String(PhantomData, bytes)
     }
 
@@ -170,6 +174,13 @@ impl<E: Encoding> String<E> {
     pub fn push_str(&mut self, str: &Str<E>) {
         self.1.extend(str.as_bytes());
     }
+
+    ///
+    pub fn into_boxed_str(self) -> Box<Str<E>> {
+        let slice = self.into_bytes().into_boxed_slice();
+        let ptr = Box::into_raw(slice) as *mut Str<E>;
+        unsafe { Box::from_raw(ptr) }
+    }
 }
 
 impl<E: Encoding + NullTerminable> String<E> {
@@ -201,7 +212,7 @@ impl String<Utf8> {
         unsafe { String::from_bytes_unchecked(value.into_bytes()) }
     }
 
-    /// Convert a [`String<Utf8>`] directly into a [`std::String`](std::string::String)
+    /// Convert a [`String<Utf8>`] directly into an [`std::String`](std::string::String)
     pub fn into_std(self) -> StdString {
         // SAFETY: `String<Utf8>` is UTF-8 by its validity guarantees.
         unsafe { StdString::from_utf8_unchecked(self.into_bytes()) }
@@ -297,6 +308,24 @@ impl<E: NullTerminable> From<CString<E>> for String<E> {
     }
 }
 
+impl<E: Encoding> From<&Str<E>> for String<E> {
+    fn from(value: &Str<E>) -> Self {
+        Str::to_owned(value)
+    }
+}
+
+impl<E: Encoding> From<Box<Str<E>>> for String<E> {
+    fn from(value: Box<Str<E>>) -> Self {
+        Str::into_string(value)
+    }
+}
+
+impl<E: Encoding> From<String<E>> for Box<Str<E>> {
+    fn from(value: String<E>) -> Self {
+        value.into_boxed_str()
+    }
+}
+
 #[cfg(feature = "serde")]
 impl<E: Encoding> Serialize for String<E> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -332,6 +361,12 @@ impl From<&str> for String<Utf8> {
     }
 }
 
+impl From<&[char]> for String<Utf32> {
+    fn from(value: &[char]) -> Self {
+        Str::from_chars(value).to_owned()
+    }
+}
+
 impl From<StdString> for String<Utf8> {
     fn from(value: StdString) -> Self {
         Self::from_std(value)
@@ -347,6 +382,7 @@ impl From<String<Utf8>> for StdString {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::encoding::Utf16;
 
     #[test]
     fn test_from_lossy_utf8() {
@@ -356,11 +392,24 @@ mod tests {
         );
         assert_eq!(
             String::<Utf8>::from_bytes_lossy(b"Abcd \xD8\xF0\x90\x90\xB7"),
-            Cow::Owned(Str::from_std("Abcd �𐐷").to_owned()),
+            Cow::<Str<_>>::Owned(Str::from_std("Abcd �𐐷").to_owned()),
         );
         assert_eq!(
             String::<Utf8>::from_bytes_lossy(b"A\xD8B\xD9C\xDAD"),
-            Cow::Owned(Str::from_std("A�B�C�D").to_owned()),
+            Cow::<Str<_>>::Owned(Str::from_std("A�B�C�D").to_owned()),
         );
+    }
+
+    #[test]
+    fn test_into_box() {
+        let s = String::from("Hello World! √4 ≠ 3")
+            .recode::<Utf16>()
+            .unwrap();
+        let b = s.into_boxed_str();
+
+        assert_eq!(
+            b.as_bytes(),
+            b"\x48\0\x65\0\x6c\0\x6c\0\x6f\0\x20\0\x57\0\x6f\0\x72\0\x6c\0\x64\0\x21\0\x20\0\x1a\x22\x34\0\x20\0\x60\x22\x20\0\x33\0"
+        )
     }
 }

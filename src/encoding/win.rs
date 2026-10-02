@@ -1,5 +1,5 @@
 use crate::encoding::sealed::Sealed;
-use crate::encoding::{AlwaysValid, Encoding, NullTerminable, ValidateError};
+use crate::encoding::{AlwaysValid, Enc, Encoding, NullTerminable, ValidateError};
 use crate::str::Str;
 #[cfg(feature = "rand")]
 use rand::{distr::Distribution, Rng};
@@ -52,6 +52,10 @@ impl Encoding for Win1251 {
 
     fn shorthand() -> &'static str {
         "win1251"
+    }
+
+    fn dyn_enc() -> Enc {
+        Enc::Win1251
     }
 
     fn validate(bytes: &[u8]) -> Result<(), ValidateError> {
@@ -128,6 +132,10 @@ impl Encoding for Win1252 {
 
     fn shorthand() -> &'static str {
         "win1252"
+    }
+
+    fn dyn_enc() -> Enc {
+        Enc::Win1252
     }
 
     fn validate(bytes: &[u8]) -> Result<(), ValidateError> {
@@ -213,6 +221,10 @@ impl Encoding for Win1252Loose {
 
     fn shorthand() -> &'static str {
         "win1252_loose"
+    }
+
+    fn dyn_enc() -> Enc {
+        Enc::Win1252Loose
     }
 
     fn validate(_: &[u8]) -> Result<(), ValidateError> {

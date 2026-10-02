@@ -5,127 +5,35 @@
 #[cfg(feature = "alloc")]
 use alloc::borrow::ToOwned;
 #[cfg(feature = "alloc")]
+use alloc::boxed::Box;
+#[cfg(feature = "alloc")]
 use alloc::vec;
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
 use bytemuck::must_cast_slice as cast_slice;
 use core::cmp::Ordering;
-use core::error::Error;
 use core::fmt::Write;
 use core::hash::{Hash, Hasher};
 use core::marker::PhantomData;
 use core::ops::{Bound, Index, RangeBounds};
 use core::slice::SliceIndex;
-use core::{fmt, mem, ptr, slice};
+use core::{fmt, ptr, slice};
 #[cfg(feature = "serde")]
 use serde::{
     de::{self, Unexpected},
     Deserialize, Deserializer, Serialize, Serializer,
 };
 
-use crate::encoding::{AlwaysValid, Encoding, RecodeCause, Utf16, Utf32, Utf8, ValidateError};
+#[cfg(feature = "alloc")]
+use crate::encoding::RecodeCause;
+use crate::encoding::{AlwaysValid, Encoding, Utf16, Utf32, Utf8, ValidateError};
 #[cfg(feature = "alloc")]
 use crate::string::String;
 
 mod iter;
 
-use crate::encoding;
+pub use crate::errors::{RecodeError, RecodeIntoError};
 pub use iter::{CharIndices, Chars};
-
-/// Error encountered while re-encoding a [`Str`] or [`CStr`](crate::CStr) into another
-/// format
-#[derive(Clone, Debug, PartialEq)]
-pub struct RecodeError {
-    valid_up_to: usize,
-    char: char,
-    char_len: u8,
-}
-
-impl RecodeError {
-    /// The length of valid data in the input before the error was encountered. Calling
-    /// [`recode`](Str::recode) again on the input sliced down to this length will succeed.
-    pub fn valid_up_to(&self) -> usize {
-        self.valid_up_to
-    }
-
-    /// The character encountered that caused re-encoding to fail. This character most likely isn't
-    /// supported by the new encoding.
-    pub fn char(&self) -> char {
-        self.char
-    }
-
-    /// The length of the character in the input encoding. Skipping this many bytes forwards from
-    /// [`valid_up_to`](Self::valid_up_to) and trying again will avoid this particular error
-    /// character (though recoding may fail again immediately due to another invalid character).
-    pub fn char_len(&self) -> usize {
-        self.char_len as usize
-    }
-}
-
-impl fmt::Display for RecodeError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "Error while recoding `Str`: invalid character for output encoding '{}'",
-            self.char
-        )
-    }
-}
-
-impl Error for RecodeError {}
-
-/// Error encountered while re-encoding a [`Str`](Str) or [`CStr`](crate::CStr) into another
-/// format in a pre-allocated buffer
-#[derive(Clone, PartialEq)]
-pub struct RecodeIntoError<'a, E: Encoding> {
-    input_used: usize,
-    str: &'a Str<E>,
-    cause: RecodeCause,
-}
-
-impl<'a, E: Encoding> RecodeIntoError<'a, E> {
-    fn from_recode(err: encoding::RecodeError, str: &'a Str<E>) -> Self {
-        RecodeIntoError {
-            input_used: err.input_used(),
-            str,
-            cause: err.cause().clone(),
-        }
-    }
-
-    /// The length of valid data in the input before the error was encountered. Calling
-    /// [`recode_into`](Str::recode_into) again on the input sliced down to this length will succeed.
-    pub fn valid_up_to(&self) -> usize {
-        self.input_used
-    }
-
-    /// The portion of the buffer with valid data written into it, as a [`Str`] in the desired
-    /// encoding.
-    pub fn output_valid(&self) -> &'a Str<E> {
-        self.str
-    }
-
-    /// The reason encoding stopped. See [`RecodeCause`] for more details on possible reasons.
-    pub fn cause(&self) -> &RecodeCause {
-        &self.cause
-    }
-}
-
-impl<E: Encoding> fmt::Debug for RecodeIntoError<'_, E> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("RecodeIntoError")
-            .field("input_used", &self.input_used)
-            .field("str", &self.str)
-            .field("cause", &self.cause)
-            .finish()
-    }
-}
-
-impl<E: Encoding> fmt::Display for RecodeIntoError<'_, E> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Error while recoding `Str` into buffer: ")?;
-        self.cause.write_cause(f)
-    }
-}
-
-impl<E: Encoding> Error for RecodeIntoError<'_, E> {}
 
 /// Implementation of a generically encoded [`str`] type. This type is similar to the standard
 /// library [`str`] type in many ways, but instead of having a fixed UTF-8 encoding scheme, it uses
@@ -133,6 +41,8 @@ impl<E: Encoding> Error for RecodeIntoError<'_, E> {}
 ///
 /// `Str` only implements `==` between instances with the same encoding. To compare strings of
 /// different encoding by characters, use `a.chars().eq(b.chars())`.
+///
+/// See [`DynStr`](crate::EncStr) for a version that allows picking the encoding at runtime.
 ///
 /// ## Invariant
 ///
@@ -227,8 +137,8 @@ impl<E: Encoding> Str<E> {
         };
 
         let end_idx = match end {
-            Bound::Included(i) => *i,
-            Bound::Excluded(i) => *i - 1,
+            Bound::Included(i) => *i + 1,
+            Bound::Excluded(i) => *i,
             Bound::Unbounded => self.as_bytes().len(),
         };
 
@@ -339,10 +249,10 @@ impl<E: Encoding> Str<E> {
     }
 
     /// Split this string at an index, returning the two substrings on either side. This method
-    /// panics if the index doesn't lie on a character boundary.
+    /// returns `None` if the index doesn't lie on a character boundary.
     pub fn split_at(&self, idx: usize) -> Option<(&Str<E>, &Str<E>)> {
         if self.is_char_boundary(idx) && idx < self.len() {
-            let (start, end) = self.1.split_at(idx);
+            let (start, end) = self.as_bytes().split_at(idx);
             // SAFETY: Index is a character boundary. Internal data guaranteed valid.
             let start = unsafe { Str::from_bytes_unchecked(start) };
             // SAFETY: Index is a character boundary. Internal data guaranteed valid.
@@ -354,10 +264,11 @@ impl<E: Encoding> Str<E> {
     }
 
     /// Split this string mutably at an index, returning the two substrings on either side. This
-    /// method panics if the index doesn't lie on a character boundary.
+    /// method returns `None` if the index doesn't lie on a character boundary.
     pub fn split_at_mut(&mut self, idx: usize) -> Option<(&mut Str<E>, &mut Str<E>)> {
         if self.is_char_boundary(idx) && idx < self.len() {
-            let (start, end) = self.1.split_at_mut(idx);
+            // SAFETY: We won't be writing through this slice, only converting it back into a &mut Str<E>
+            let (start, end) = unsafe { self.as_bytes_mut().split_at_mut(idx) };
             // SAFETY: Index is a character boundary. Internal data guaranteed valid.
             let start = unsafe { Str::from_bytes_unchecked_mut(start) };
             // SAFETY: Index is a character boundary. Internal data guaranteed valid.
@@ -373,7 +284,7 @@ impl<E: Encoding> Str<E> {
     pub fn recode_into<'a, E2: Encoding>(
         &self,
         buffer: &'a mut [u8],
-    ) -> Result<&'a Str<E2>, RecodeIntoError<'a, E2>> {
+    ) -> Result<&'a Str<E2>, RecodeIntoError<'a, Str<E2>>> {
         E2::recode(self, buffer)
             .map(|len| {
                 // SAFETY: Value written into `out` by `recode` is guaranteed valid in encoding
@@ -395,7 +306,7 @@ impl<E: Encoding> Str<E> {
     pub fn recode<E2: Encoding>(&self) -> Result<String<E2>, RecodeError> {
         let mut ptr = self;
         let mut total_len = 0;
-        let mut out = vec![0; self.1.len()];
+        let mut out = vec![0; self.len()];
         loop {
             match E2::recode(ptr, &mut out[total_len..]) {
                 Ok(len) => {
@@ -406,7 +317,7 @@ impl<E: Encoding> Str<E> {
                 }
                 Err(e) => match e.cause() {
                     RecodeCause::NeedSpace { .. } => {
-                        out.resize(out.len() + self.1.len(), 0);
+                        out.resize(out.len() + self.len(), 0);
                         ptr = &ptr[e.input_used()..];
                         total_len += e.output_valid();
                     }
@@ -429,7 +340,7 @@ impl<E: Encoding> Str<E> {
     pub fn recode_lossy<E2: Encoding>(&self) -> String<E2> {
         let mut ptr = self;
         let mut total_len = 0;
-        let mut out = vec![0; self.1.len()];
+        let mut out = vec![0; self.len()];
         loop {
             match E2::recode(ptr, &mut out[total_len..]) {
                 Ok(len) => {
@@ -440,7 +351,7 @@ impl<E: Encoding> Str<E> {
                 }
                 Err(e) => match e.cause() {
                     RecodeCause::NeedSpace { .. } => {
-                        out.resize(out.len() + self.1.len(), 0);
+                        out.resize(out.len() + self.len(), 0);
                         ptr = &ptr[e.input_used()..];
                         total_len += e.output_valid();
                     }
@@ -455,6 +366,21 @@ impl<E: Encoding> Str<E> {
                 },
             }
         }
+    }
+
+    /// Converts a `Box<Str<E>>` into a `String<E>` without copying or allocating.
+    #[cfg(feature = "alloc")]
+    pub fn into_string(self: Box<Self>) -> String<E> {
+        let len = self.len();
+        let ptr = Box::into_raw(self).cast::<u8>();
+        let v = unsafe { Vec::from_raw_parts(ptr, len, len) };
+        unsafe { String::from_bytes_unchecked(v) }
+    }
+
+    /// Converts a `Box<Str<E>>` into a `Box<[u8]>` without copying or allocating.
+    #[cfg(feature = "alloc")]
+    pub fn into_boxed_bytes(self: Box<Self>) -> Box<[u8]> {
+        unsafe { Box::from_raw(Box::into_raw(self) as *mut [u8]) }
     }
 }
 
@@ -549,9 +475,9 @@ impl Str<Utf32> {
     /// Attempt to convert a [`Str<Utf32>`] directly into a [`&[char]`]. This will fail if the `Str`
     /// is not sufficiently aligned for a `char`.
     pub fn try_chars(&self) -> Option<&[char]> {
-        let len = self.1.len();
+        let len = self.len();
         let ptr = ptr::from_ref(&self.1);
-        if (ptr.cast::<()>() as usize) % mem::align_of::<char>() != 0 {
+        if (ptr.cast::<()>() as usize) % align_of::<char>() != 0 {
             None
         } else {
             // SAFETY: We have guaranteed correct alignment, and Utf32 encoding is exactly
@@ -631,6 +557,22 @@ impl<E: Encoding> AsRef<[u8]> for Str<E> {
     }
 }
 
+#[cfg(feature = "alloc")]
+impl<E: Encoding> From<&Str<E>> for Box<Str<E>> {
+    fn from(value: &Str<E>) -> Self {
+        let mut slice = Box::<[u8]>::new_uninit_slice(value.len());
+        unsafe {
+            ptr::copy::<u8>(
+                ptr::from_ref(value.as_bytes()).cast(),
+                slice.as_mut_ptr().cast(),
+                value.len(),
+            )
+        };
+        let b = unsafe { slice.assume_init() };
+        unsafe { Box::from_raw(Box::into_raw(b) as *mut Str<E>) }
+    }
+}
+
 #[cfg(feature = "serde")]
 impl<E: Encoding> Serialize for Str<E> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -678,6 +620,12 @@ impl<'a> From<&'a [char]> for &'a Str<Utf32> {
     }
 }
 
+impl PartialEq<str> for Str<Utf8> {
+    fn eq(&self, other: &str) -> bool {
+        self.as_std() == other
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -686,9 +634,36 @@ mod tests {
     use alloc::vec::Vec;
 
     #[test]
+    fn test_get() {
+        let s = Str::from_std("abcd");
+        assert_eq!(s.get(0..1), Some(Str::from_std("a")));
+        assert_eq!(s.get(3..4), Some(Str::from_std("d")));
+
+        assert_eq!(s.get(0..2), Some(Str::from_std("ab")));
+        assert_eq!(s.get(2..4), Some(Str::from_std("cd")));
+
+        assert_eq!(s.get(0..0), Some(<&Str<_>>::default()));
+        assert_eq!(s.get(0..100), None);
+
+        let s = Str::from_std("€𐐷b");
+        assert_eq!(s.get(0..3), Some(Str::from_std("€")));
+        assert_eq!(s.get(3..7), Some(Str::from_std("𐐷")));
+        assert_eq!(s.get(7..8), Some(Str::from_std("b")));
+
+        assert_eq!(s.get(0..7), Some(Str::from_std("€𐐷")));
+        assert_eq!(s.get(3..8), Some(Str::from_std("𐐷b")));
+
+        assert_eq!(s.get(0..1), None);
+        assert_eq!(s.get(1..3), None);
+        assert_eq!(s.get(1..5), None);
+        assert_eq!(s.get(0..100), None);
+        assert_eq!(s.get(1..1), None);
+    }
+
+    #[test]
     fn test_chars() {
         let str = Str::from_std("Abc𐐷d");
-        assert_eq!(&str.chars().collect::<Vec<_>>(), &['A', 'b', 'c', '𐐷', 'd'],);
+        assert_eq!(&str.chars().collect::<Vec<_>>(), &['A', 'b', 'c', '𐐷', 'd']);
 
         let str = Str::<Utf16>::from_utf16(&[
             b'A' as u16,
@@ -699,10 +674,10 @@ mod tests {
             b'd' as u16,
         ])
         .unwrap();
-        assert_eq!(&str.chars().collect::<Vec<_>>(), &['A', 'b', 'c', '𐐷', 'd'],);
+        assert_eq!(&str.chars().collect::<Vec<_>>(), &['A', 'b', 'c', '𐐷', 'd']);
 
         let str = Str::from_chars(&['A', 'b', 'c', '𐐷', 'd']);
-        assert_eq!(&str.chars().collect::<Vec<_>>(), &['A', 'b', 'c', '𐐷', 'd'],);
+        assert_eq!(&str.chars().collect::<Vec<_>>(), &['A', 'b', 'c', '𐐷', 'd']);
     }
 
     #[test]
@@ -784,6 +759,15 @@ mod tests {
 
     #[cfg(feature = "alloc")]
     #[test]
+    fn test_recode_lossy_larger_format() {
+        let a = Str::from_std("A𐐷b");
+        let b = a.recode_lossy::<Utf32>();
+
+        assert_eq!(&*b, Str::from_chars(&['A', '𐐷', 'b']));
+    }
+
+    #[cfg(feature = "alloc")]
+    #[test]
     fn test_recode_lossy_invalid_chars() {
         let a = Str::from_std("A𐐷b");
         let b = a.recode_lossy::<Ascii>();
@@ -794,5 +778,18 @@ mod tests {
         let b = a.recode_lossy::<Win1252>();
 
         assert_eq!(&*b, Str::from_bytes(b"\x80\x1Ab").unwrap());
+    }
+
+    #[cfg(feature = "alloc")]
+    const UTF16_HELLO_WORLD: &[u8] = b"\x48\0\x65\0\x6c\0\x6c\0\x6f\0\x20\0\x57\0\x6f\0\x72\0\x6c\0\x64\0\x21\0\x20\0\x1a\x22\x34\0\x20\0\x60\x22\x20\0\x33\0";
+
+    #[cfg(feature = "alloc")]
+    #[test]
+    fn to_boxed_str() {
+        let s = unsafe { Str::<Utf16>::from_bytes_unchecked(UTF16_HELLO_WORLD) };
+        let b = Box::<Str<_>>::from(s);
+
+        assert_eq!(b.len(), UTF16_HELLO_WORLD.len());
+        assert_eq!(b.as_bytes(), UTF16_HELLO_WORLD);
     }
 }
