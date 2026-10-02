@@ -9,6 +9,10 @@ use crate::str::Str;
 use crate::utils::RangeOpen;
 #[cfg(feature = "alloc")]
 use alloc::borrow::ToOwned;
+#[cfg(feature = "alloc")]
+use alloc::boxed::Box;
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
 use core::borrow::Borrow;
 use core::error::Error;
 use core::ffi::c_char;
@@ -462,6 +466,22 @@ impl<E: Encoding + NullTerminable> CStr<E> {
             None
         }
     }
+
+    /// Converts a `Box<CStr<E>>` into a `CString<E>` without copying or allocating.
+    #[cfg(feature = "alloc")]
+    pub fn into_cstring(self: Box<Self>) -> CString<E> {
+        let len = self.len() + 1;
+        let ptr = Box::into_raw(self).cast::<u8>();
+        let v = unsafe { Vec::from_raw_parts(ptr, len, len) };
+        unsafe { CString::from_vec_with_nul_unchecked(v) }
+    }
+
+    /// Converts a `Box<CStr<E>>` into a `Box<[u8]>` without copying or allocating. The trailing
+    /// null byte is included.
+    #[cfg(feature = "alloc")]
+    pub fn into_boxed_bytes_with_nul(self: Box<Self>) -> Box<[u8]> {
+        unsafe { Box::from_raw(Box::into_raw(self) as *mut [u8]) }
+    }
 }
 
 impl<E: NullTerminable + AlwaysValid> CStr<E> {
@@ -580,6 +600,8 @@ where
     }
 }
 
+// No mutable derefs, as that may allow inserting null bytes
+
 impl<E: NullTerminable> Deref for CStr<E> {
     type Target = Str<E>;
 
@@ -597,6 +619,22 @@ impl<E: NullTerminable> AsRef<Str<E>> for CStr<E> {
 impl<E: NullTerminable> Borrow<Str<E>> for CStr<E> {
     fn borrow(&self) -> &Str<E> {
         self
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl<E: NullTerminable> From<&CStr<E>> for Box<CStr<E>> {
+    fn from(value: &CStr<E>) -> Self {
+        let mut slice = Box::<[u8]>::new_uninit_slice(value.len() + 1);
+        unsafe {
+            ptr::copy::<u8>(
+                ptr::from_ref(value.as_bytes_with_nul()).cast(),
+                slice.as_mut_ptr().cast(),
+                value.len() + 1,
+            )
+        };
+        let b = unsafe { slice.assume_init() };
+        unsafe { Box::from_raw(Box::into_raw(b) as *mut CStr<E>) }
     }
 }
 

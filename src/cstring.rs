@@ -1,5 +1,11 @@
 //! Implementation and utilities for a generically encoded [`std::ffi::CString`] equivalent type.
 
+use crate::cstr::CStr;
+use crate::encoding::{AlwaysValid, Encoding, NullTerminable, ValidateError};
+use crate::str::Str;
+use crate::string::{OwnValidateError, String};
+use alloc::borrow::ToOwned;
+use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::borrow::{Borrow, BorrowMut};
 use core::error::Error;
@@ -7,11 +13,6 @@ use core::fmt;
 use core::hash::{Hash, Hasher};
 use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut};
-
-use crate::cstr::CStr;
-use crate::encoding::{AlwaysValid, Encoding, NullTerminable, ValidateError};
-use crate::str::Str;
-use crate::string::{OwnValidateError, String};
 
 /// The cause of an error while creating a [`CString`]
 #[derive(Debug, PartialEq)]
@@ -124,6 +125,20 @@ impl<E: Encoding + NullTerminable> CString<E> {
         CString(PhantomData, bytes)
     }
 
+    /// Create a C string from a byte vector, without checking for interior null
+    /// bytes or valid encoding. This method is similar to [`CString::new`],
+    /// but without validity checking.
+    ///
+    /// A trailing null byte must already be present in the vector.
+    ///
+    /// # Safety
+    ///
+    /// The provided vector must contain exactly one null byte at the end and be valid for the
+    /// current encoding.
+    pub unsafe fn from_vec_with_nul_unchecked(bytes: Vec<u8>) -> CString<E> {
+        CString(PhantomData, bytes)
+    }
+
     /// Create a new C string from a container of bytes. The provided data should contain no null
     /// bytes.
     ///
@@ -189,6 +204,14 @@ impl<E: Encoding + NullTerminable> CString<E> {
         let bytes = self.into_bytes();
         // SAFETY: A valid CString is guaranteed to contain no internal null bytes
         unsafe { alloc::ffi::CString::from_vec_unchecked(bytes) }
+    }
+
+    /// Convert this string into a `Box<CStr<E>>`. May re-allocate to shrink the underlying
+    /// allocation if it is oversized.
+    pub fn into_boxed_cstr(self) -> Box<CStr<E>> {
+        let slice = self.into_bytes_with_nul().into_boxed_slice();
+        let ptr = Box::into_raw(slice) as *mut CStr<E>;
+        unsafe { Box::from_raw(ptr) }
     }
 }
 
@@ -305,6 +328,24 @@ impl<E: NullTerminable> TryFrom<alloc::ffi::CString> for CString<E> {
 impl<E: NullTerminable> From<CString<E>> for alloc::ffi::CString {
     fn from(value: CString<E>) -> Self {
         value.into_std()
+    }
+}
+
+impl<E: NullTerminable> From<&CStr<E>> for CString<E> {
+    fn from(value: &CStr<E>) -> Self {
+        CStr::to_owned(value)
+    }
+}
+
+impl<E: NullTerminable> From<Box<CStr<E>>> for CString<E> {
+    fn from(value: Box<CStr<E>>) -> Self {
+        CStr::into_cstring(value)
+    }
+}
+
+impl<E: NullTerminable> From<CString<E>> for Box<CStr<E>> {
+    fn from(value: CString<E>) -> Self {
+        value.into_boxed_cstr()
     }
 }
 

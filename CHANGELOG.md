@@ -8,6 +8,8 @@
 - `errors` module for errors common across multiple types.
 - Crate features for most encodings, enabled by default. Allows shrinking compile-times if only certain encodings
   are needed.
+- `Box<Str<E>>` and `Box<CStr<E>>` related methods
+- Add common trait impls such as `From` and `PartialEq` to many types. Please open an issue for any missing impls.
 - New Encodings:
   - ISO/IEC 8859-3 through ISO/IEC 8859-16
 

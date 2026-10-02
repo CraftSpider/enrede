@@ -175,7 +175,8 @@ impl<E: Encoding> String<E> {
         self.1.extend(str.as_bytes());
     }
 
-    ///
+    /// Convert this string into a `Box<Str<E>>`. May re-allocate to shrink the underlying
+    /// allocation if it is oversized.
     pub fn into_boxed_str(self) -> Box<Str<E>> {
         let slice = self.into_bytes().into_boxed_slice();
         let ptr = Box::into_raw(slice) as *mut Str<E>;
