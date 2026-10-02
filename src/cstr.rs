@@ -603,8 +603,11 @@ impl<E: NullTerminable> Borrow<Str<E>> for CStr<E> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::encoding::{Ascii, Utf8};
+    #[cfg(feature = "ascii")]
+    use crate::encoding::Ascii;
+    use crate::encoding::Utf8;
 
+    #[cfg(feature = "ascii")]
     #[test]
     fn test_from_bytes_with_nul() {
         assert!(CStr::<Ascii>::from_bytes_with_nul(b"Hello World!\0").is_ok());
@@ -622,6 +625,7 @@ mod tests {
         ));
     }
 
+    #[cfg(feature = "ascii")]
     #[test]
     fn test_from_bytes_til_nul() {
         let base = CStr::<Ascii>::from_bytes_til_nul(b"Hello World!\0").unwrap();

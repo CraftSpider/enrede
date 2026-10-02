@@ -32,8 +32,14 @@ use crate::string::String;
 
 mod iter;
 
-pub use crate::errors::{RecodeError, RecodeIntoError};
+use crate::errors;
+pub use crate::errors::RecodeError;
 pub use iter::{CharIndices, Chars};
+
+/// Backwards-compatibility alias for [`errors::RecodeIntoError`], which used to be defined in this
+/// module with an encoding generic.
+#[deprecated = "Prefer using the type from the `errors` module directly."]
+pub type RecodeIntoError<'a, E> = errors::RecodeIntoError<'a, Str<E>>;
 
 /// Implementation of a generically encoded [`str`] type. This type is similar to the standard
 /// library [`str`] type in many ways, but instead of having a fixed UTF-8 encoding scheme, it uses
@@ -284,7 +290,7 @@ impl<E: Encoding> Str<E> {
     pub fn recode_into<'a, E2: Encoding>(
         &self,
         buffer: &'a mut [u8],
-    ) -> Result<&'a Str<E2>, RecodeIntoError<'a, Str<E2>>> {
+    ) -> Result<&'a Str<E2>, errors::RecodeIntoError<'a, Str<E2>>> {
         E2::recode(self, buffer)
             .map(|len| {
                 // SAFETY: Value written into `out` by `recode` is guaranteed valid in encoding
@@ -295,7 +301,7 @@ impl<E: Encoding> Str<E> {
                 // SAFETY: Value written into `out` by `recode` is guaranteed valid in encoding
                 //         E2, up to output_valid.
                 let str = unsafe { Str::from_bytes_unchecked(&buffer[..err.output_valid()]) };
-                RecodeIntoError::from_recode(err, str)
+                errors::RecodeIntoError::from_recode(err, str)
             })
     }
 

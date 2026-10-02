@@ -9,7 +9,7 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/CraftSpider/enrede"
 
 [features]
-defaults = ["std"]
+defaults = ["std", "all_encodings"]
 # Allow dependency on `std`
 std = ["alloc"]
 # Allow dependency on `alloc`
@@ -19,12 +19,47 @@ rand = ["dep:rand"]
 # Add support for serializing/deserializing types
 serde = ["dep:serde"]
 
+# All encodings. Note: even when disabled, UTF encodings are always supported, as they're built into Rust.
+all_encodings = ["win", "iso", "mac", "jis", "ascii"]
+
+win = ["win1251", "win1252"]
+win1251 = ["dep:phf"]
+win1252 = []
+
+iso = ["iso8859_1", "iso8859_2", "iso8859_3", "iso8859_4", "iso8859_5", "iso8859_6", "iso8859_7", "iso8859_8", "iso8859_9", "iso8859_10", "iso8859_11", "iso8859_13", "iso8859_14", "iso8859_15", "iso8859_16"]
+iso8859_1 = []
+iso8859_2 = []
+iso8859_3 = []
+iso8859_4 = []
+iso8859_5 = []
+iso8859_6 = []
+iso8859_7 = []
+iso8859_8 = []
+iso8859_9 = []
+iso8859_10 = []
+iso8859_11 = []
+iso8859_13 = []
+iso8859_14 = []
+iso8859_15 = []
+iso8859_16 = []
+
+mac = ["mac_roman"]
+mac_roman = []
+
+jis = ["shiftjis", "jisx0201", "jisx0208"]
+# Based on other encodings, so depends on their implementations
+shiftjis = ["jisx0201", "jisx0208"]
+jisx0201 = []
+jisx0208 = ["dep:phf"]
+
+ascii = []
+
 [dependencies]
 bytemuck = { version = "1.16", features = ["derive", "must_cast"] }
 arrayvec = "0.7"
 rand = { version = "0.9", optional = true, default-features = false }
 serde = { version = "1.0", optional = true, default-features = false }
-phf = { version = "0.11", default-features = false, features = ["macros"] }
+phf = { version = "0.11", optional = true, default-features = false, features = ["macros"] }
 
 [dev-dependencies]
 criterion = "0.5"

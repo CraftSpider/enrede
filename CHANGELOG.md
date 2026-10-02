@@ -1,5 +1,26 @@
 # Changelog
 
+# [0.2.1] - XXXX-XX-XX
+
+### Added
+
+- `EncStr`/`EncString` types providing runtime-dynamic encoding support
+- `errors` module for errors common across multiple types.
+- Crate features for most encodings, enabled by default. Allows shrinking compile-times if only certain encodings
+  are needed.
+- New Encodings:
+  - ISO/IEC 8859-3 through ISO/IEC 8859-16
+
+### Fixed
+
+- `Str::get`/`Str::get_mut` boundary checks were incorrect, leading to unexpected panics when slicing on a valid
+  boundary.
+
+### Changed
+
+- ISO/IEC 8859-* encodings now include C0 control codes
+- String errors are now defined in the `errors` module and re-exported in `str` for backward-compatibility.
+
 # [0.2.0] - 2025-06-17
 
 ### Added

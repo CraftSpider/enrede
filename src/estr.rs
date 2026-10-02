@@ -5,7 +5,7 @@
 #[cfg(feature = "alloc")]
 use crate::encoding::RecodeCause;
 use crate::encoding::{Enc, ValidateError};
-use crate::errors::EncodingMismatch;
+use crate::errors::{EncodingMismatch, RecodeError, RecodeIntoError};
 #[cfg(feature = "alloc")]
 use crate::estring::EncString;
 use crate::{Encoding, Str};
@@ -23,7 +23,6 @@ use core::{fmt, ptr, slice};
 
 mod iter;
 
-pub use crate::errors::{RecodeError, RecodeIntoError};
 pub use iter::*;
 
 /// Implementation of a dynamically encoded [`str`] type. This type is similar to the standard
@@ -672,8 +671,11 @@ mod tests {
 
     #[test]
     fn test_empty() {
-        let s = EncStr::empty(Enc::Ascii);
-        assert_eq!(s.len(), 0);
+        #[cfg(feature = "ascii")]
+        {
+            let s = EncStr::empty(Enc::Ascii);
+            assert_eq!(s.len(), 0);
+        }
 
         let s = EncStr::empty(Enc::Utf8);
         assert_eq!(s.len(), 0);

@@ -39,6 +39,9 @@ in your `Cargo.toml`, you can disable these features. When `std` is disabled, th
 is `no_std`. When the `alloc` feature is disabled, the crate won't use `alloc`, and any types
 or functions requiring allocation will be disabled (For example [`String<E>`]).
 
+Since most encodings are also feature-gated, if disabling default features be sure to also enable the encodings
+you want. To get all of them, use the `all_encodings` feature.
+
 ## Limitations
 
 Currently, it is assumed that all supported encodings are subsets of the Unicode character set.

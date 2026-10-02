@@ -11,18 +11,60 @@ use arrayvec::ArrayVec;
 use core::error::Error;
 use core::{fmt, slice};
 
+#[cfg(feature = "ascii")]
 mod ascii;
+#[cfg(any(
+    feature = "iso8859_1",
+    feature = "iso8859_2",
+    feature = "iso8859_3",
+    feature = "iso8859_4",
+    feature = "iso8859_5",
+    feature = "iso8859_6",
+    feature = "iso8859_7",
+    feature = "iso8859_8",
+    feature = "iso8859_9",
+    feature = "iso8859_10",
+    feature = "iso8859_11",
+    feature = "iso8859_13",
+    feature = "iso8859_14",
+    feature = "iso8859_15",
+    feature = "iso8859_16",
+))]
 mod iso;
+#[cfg(any(feature = "shiftjis", feature = "jisx0201", feature = "jisx0208"))]
 mod jis;
+#[cfg(feature = "mac_roman")]
 mod mac;
 mod utf;
+#[cfg(any(feature = "win1251", feature = "win1252"))]
 mod win;
 
+#[cfg(feature = "ascii")]
 pub use ascii::*;
+#[cfg(any(
+    feature = "iso8859_1",
+    feature = "iso8859_2",
+    feature = "iso8859_3",
+    feature = "iso8859_4",
+    feature = "iso8859_5",
+    feature = "iso8859_6",
+    feature = "iso8859_7",
+    feature = "iso8859_8",
+    feature = "iso8859_9",
+    feature = "iso8859_10",
+    feature = "iso8859_11",
+    feature = "iso8859_13",
+    feature = "iso8859_14",
+    feature = "iso8859_15",
+    feature = "iso8859_16",
+))]
 pub use iso::*;
+#[cfg(any(feature = "shiftjis", feature = "jisx0201", feature = "jisx0208"))]
 pub use jis::*;
+#[cfg(feature = "mac_roman")]
 pub use mac::*;
 pub use utf::*;
+#[cfg(any(feature = "win1251", feature = "win1252"))]
 pub use win::*;
 
 mod sealed {
@@ -144,13 +186,17 @@ pub trait NullTerminable: Encoding {}
 pub trait AlwaysValid: Encoding {}
 
 macro_rules! enc {
-    ($($encoding:ident),* $(,)?) => {
+    ($(
+        $(#[cfg($($cfg:tt)*)])*
+        $encoding:ident
+    ),* $(,)?) => {
         /// Enumeration of all supported string encodings. Supports most encoding operations
         #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
         #[non_exhaustive]
         #[repr(u8)]
         pub enum Enc {
             $(
+            $(#[cfg($($cfg)*)])*
             #[doc = concat!("See [`", stringify!($encoding), "`]")]
             $encoding,
             )*
@@ -164,38 +210,56 @@ macro_rules! enc {
 
             #[cfg(test)]
             pub(crate) fn all() -> impl Iterator<Item = Enc> {
-                [$(Self::$encoding),*].into_iter()
+                [$(
+                $(#[cfg($($cfg)*)])*
+                Self::$encoding
+                ),*].into_iter()
             }
 
             #[cfg(test)]
             pub(crate) fn all_dyn() -> impl Iterator<Item = Enc> {
-                [$($encoding::dyn_enc()),*].into_iter()
+                [$(
+                $(#[cfg($($cfg)*)])*
+                $encoding::dyn_enc()
+                ),*].into_iter()
             }
 
             pub(crate) const fn max_discrim() -> usize {
                 let mut a = 0;
-                $( stringify!($encoding); a += 1; )*
+                $(
+                $(#[cfg($($cfg)*)])*
+                { stringify!($encoding); a += 1; }
+                )*
                 a
             }
 
             #[allow(unused)]
             pub(crate) fn replacement(self) -> char {
                 match self {
-                    $(Self::$encoding => $encoding::REPLACEMENT),*
+                    $(
+                    $(#[cfg($($cfg)*)])*
+                    Self::$encoding => $encoding::REPLACEMENT
+                    ),*
                 }
             }
 
             #[allow(unused)]
             pub(crate) fn shorthand(self) -> &'static str {
                 match self {
-                    $(Self::$encoding => $encoding::shorthand()),*
+                    $(
+                    $(#[cfg($($cfg)*)])*
+                    Self::$encoding => $encoding::shorthand()
+                    ),*
                 }
             }
 
             /// Given a byte slice, determine whether it is valid for the current encoding.
             pub fn validate(self, bytes: &[u8]) -> Result<(), ValidateError> {
                 match self {
-                    $(Self::$encoding => $encoding::validate(bytes)),*
+                    $(
+                    $(#[cfg($($cfg)*)])*
+                    Self::$encoding => $encoding::validate(bytes)
+                    ),*
                 }
             }
 
@@ -240,6 +304,7 @@ macro_rules! enc {
             pub(crate) fn encode_char(self, c: char) -> Option<ArrayVec<u8, 4>> {
                 match self {
                     $(
+                    $(#[cfg($($cfg)*)])*
                     Self::$encoding => $encoding::encode_char(c).map(IntoAV::into_av)
                     ),*
                 }
@@ -248,6 +313,7 @@ macro_rules! enc {
             pub(crate) unsafe fn decode_char_unchecked(self, str: &crate::EncStr) -> (char, &crate::EncStr) {
                 match self {
                     $(
+                    $(#[cfg($($cfg)*)])*
                     Self::$encoding => {
                         let (c, str) = $encoding::decode_char(str.downcast_unchecked());
                         (c, str.into())
@@ -259,6 +325,7 @@ macro_rules! enc {
             pub(crate) unsafe fn char_bound_unchecked(self, str: &crate::EncStr, idx: usize) -> bool {
                 match self {
                     $(
+                    $(#[cfg($($cfg)*)])*
                     Self::$encoding => $encoding::char_bound(str.downcast_unchecked(), idx)
                     ),*
                 }
@@ -267,6 +334,7 @@ macro_rules! enc {
             pub(crate) fn char_len(self, c: char) -> usize {
                 match self {
                     $(
+                    $(#[cfg($($cfg)*)])*
                     Self::$encoding => $encoding::char_len(c)
                     ),*
                 }
@@ -279,11 +347,13 @@ macro_rules! enc {
             #[allow(non_upper_case_globals)]
             fn try_from(value: usize) -> Result<Self, Self::Error> {
                 $(
+                $(#[cfg($($cfg)*)])*
                 const $encoding: usize = Enc::$encoding as u8 as usize;
                 )*
 
                 Ok(match value {
                     $(
+                    $(#[cfg($($cfg)*)])*
                     $encoding => Self::$encoding,
                     )*
                     _ => return Err(()),
@@ -296,33 +366,57 @@ macro_rules! enc {
 // This should be kept up-to-date with new [`crate::Encoding`] impls
 enc!(
     // Basic impls
+    #[cfg(feature = "ascii")]
     Ascii,
+    #[cfg(feature = "ascii")]
     ExtendedAscii,
     // ISO impls
+    #[cfg(feature = "iso8859_1")]
     Iso8859_1,
+    #[cfg(feature = "iso8859_2")]
     Iso8859_2,
+    #[cfg(feature = "iso8859_3")]
     Iso8859_3,
+    #[cfg(feature = "iso8859_4")]
     Iso8859_4,
+    #[cfg(feature = "iso8859_5")]
     Iso8859_5,
+    #[cfg(feature = "iso8859_6")]
     Iso8859_6,
+    #[cfg(feature = "iso8859_7")]
     Iso8859_7,
+    #[cfg(feature = "iso8859_8")]
     Iso8859_8,
+    #[cfg(feature = "iso8859_9")]
     Iso8859_9,
+    #[cfg(feature = "iso8859_10")]
     Iso8859_10,
+    #[cfg(feature = "iso8859_11")]
     Iso8859_11,
+    #[cfg(feature = "iso8859_13")]
     Iso8859_13,
+    #[cfg(feature = "iso8859_14")]
     Iso8859_14,
+    #[cfg(feature = "iso8859_15")]
     Iso8859_15,
+    #[cfg(feature = "iso8859_16")]
     Iso8859_16,
     // JIS impls
+    #[cfg(feature = "jisx0201")]
     JisX0201,
+    #[cfg(feature = "jisx0208")]
     JisX0208,
+    #[cfg(feature = "shiftjis")]
     ShiftJIS,
     // Mac impls
+    #[cfg(feature = "mac_roman")]
     MacRoman,
     // Win impls
+    #[cfg(feature = "win1251")]
     Win1251,
+    #[cfg(feature = "win1252")]
     Win1252,
+    #[cfg(feature = "win1252")]
     Win1252Loose,
     // UTF impls
     Utf8,

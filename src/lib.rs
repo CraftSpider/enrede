@@ -4,6 +4,8 @@
 
 #[cfg(any(feature = "alloc", test))]
 extern crate alloc;
+#[cfg(feature = "std")]
+extern crate std;
 
 pub mod cstr;
 #[cfg(feature = "alloc")]
@@ -13,6 +15,8 @@ pub mod errors;
 pub mod estr;
 #[cfg(feature = "alloc")]
 pub mod estring;
+#[cfg(feature = "std")]
+pub mod ext;
 pub mod str;
 #[cfg(feature = "alloc")]
 pub mod string;
