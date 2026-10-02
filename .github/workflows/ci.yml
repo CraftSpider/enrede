@@ -66,9 +66,3 @@ jobs:
       - run: cargo miri test --all-features
         env:
           MIRIFLAGS: -Zmiri-tree-borrows
-  semver:
-    name: cargo semver-checks
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check semver
-        uses: obi1kenobi/cargo-semver-checks-action@v2

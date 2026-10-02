@@ -30,7 +30,7 @@ impl Encoding for Iso8859_2 {
     fn shorthand() -> &'static str {
         "iso8859_2"
     }
-    
+
     fn dyn_enc() -> Enc {
         Enc::Iso8859_2
     }
