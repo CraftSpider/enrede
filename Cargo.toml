@@ -18,6 +18,8 @@ alloc = ["serde?/alloc"]
 rand = ["dep:rand"]
 # Add support for serializing/deserializing types
 serde = ["dep:serde"]
+# Add re-exports for macros from the proc-macro crate
+macros = ["dep:enrede-proc"]
 
 # All encodings. Note: even when disabled, UTF encodings are always supported, as they're built into Rust.
 all_encodings = ["win", "iso", "mac", "jis", "ascii"]
@@ -60,6 +62,7 @@ arrayvec = "0.7"
 rand = { version = "0.9", optional = true, default-features = false }
 serde = { version = "1.0", optional = true, default-features = false }
 phf = { version = "0.11", optional = true, default-features = false, features = ["macros"] }
+enrede-proc = { version = "0.1", optional = true, path = "enrede-proc" }
 
 [dev-dependencies]
 criterion = "0.5"

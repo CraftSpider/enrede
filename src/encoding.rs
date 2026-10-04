@@ -208,6 +208,35 @@ macro_rules! enc {
                 E::dyn_enc()
             }
 
+            /// Convert a shorthand string into a dynamic encoding.
+            pub fn from_shorthand(s: &str) -> Option<Enc> {
+                if s == "utf16" {
+                    return Some(Enc::of::<Utf16>());
+                }
+                if s == "utf32" {
+                    return Some(Enc::of::<Utf32>());
+                }
+
+                $(
+                $(#[cfg($($cfg)*)])*
+                if s == $encoding::shorthand() {
+                    return Some(Enc::$encoding)
+                }
+                )*
+                None
+            }
+
+            /// Get the name of the encoding type this variant represents.
+            #[doc(hidden)]
+            pub fn type_name(self) -> &'static str {
+                match self {
+                    $(
+                    $(#[cfg($($cfg)*)])*
+                    Self::$encoding => stringify!($encoding),
+                    )*
+                }
+            }
+
             #[cfg(test)]
             pub(crate) fn all() -> impl Iterator<Item = Enc> {
                 [$(
