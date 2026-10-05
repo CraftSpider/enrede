@@ -1,4 +1,4 @@
-//! Implementation and utilities for a generically encoded [`std::ffi::CStr`] equivalent type.
+//! Implementation and utilities for a generically encoded [`core::ffi::CStr`] equivalent type.
 //!
 //! See also the [`CStr<E>`] type.
 
@@ -133,7 +133,7 @@ impl Error for FromBytesWithNulValidError {}
 /// null bytes to represent many characters. The [`NullTerminable`] trait is implemented by all
 /// encodings that may be used in C strings.
 ///
-/// Unlike the [`std::ffi::CStr`] type, this type implements `Deref` to [`Str<E>`]. This is because
+/// Unlike the [`core::ffi::CStr`] type, this type implements `Deref` to [`Str<E>`]. This is because
 /// while the `std` CStr isn't guaranteed to be in any particular encoding, and may not be a valid
 /// `str`, this type always contains correctly encoded data.
 #[repr(transparent)]

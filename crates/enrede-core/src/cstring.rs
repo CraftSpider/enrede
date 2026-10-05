@@ -188,7 +188,7 @@ impl<E: Encoding + NullTerminable> CString<E> {
         self.1
     }
 
-    /// Convert an [`std::CString`](std::ffi::String) directly into a [`String<E>`]
+    /// Convert an [`std::CString`](std::ffi::CString) directly into a [`String<E>`]
     pub fn from_std(value: alloc::ffi::CString) -> Result<Self, OwnValidateError> {
         let bytes = value.into_bytes();
         match E::validate(&bytes) {

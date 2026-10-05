@@ -107,7 +107,9 @@ pub trait Encoding: Default + Sealed {
     #[doc(hidden)]
     type Bytes: ArrayLike;
 
-    #[doc(hidden)]
+    /// Get a string that uniquely identifies this encoding. These value need not follow any
+    /// particular pattern, aside from being stable across minor versions and unique among supported
+    /// encodings.
     fn shorthand() -> &'static str;
 
     #[doc(hidden)]
@@ -166,8 +168,7 @@ pub trait Encoding: Default + Sealed {
     fn char_bound(str: &Str<Self>, idx: usize) -> bool;
 
     /// Get the length of the given character in this encoding. Characters not supported by the
-    /// encoding are expected to return 0 currently, this may change in the future.
-    #[doc(hidden)]
+    /// encoding are expected to return 0 currently, this may change in future versions.
     fn char_len(c: char) -> usize;
 }
 

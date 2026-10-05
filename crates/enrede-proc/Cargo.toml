@@ -10,3 +10,7 @@ proc-macro = true
 syn = "3.0"
 proc-macro2 = "1.0"
 quote = "1.0"
+enrede-core = { version = "0.1", default-features = false, features = ["alloc", "all_encodings"] }
+
+[dev-dependencies]
+enrede = { path = "../.." }

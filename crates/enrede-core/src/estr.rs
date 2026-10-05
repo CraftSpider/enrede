@@ -5,7 +5,9 @@
 #[cfg(feature = "alloc")]
 use crate::encoding::RecodeCause;
 use crate::encoding::{Enc, ValidateError};
-use crate::errors::{EncodingMismatch, RecodeError, RecodeIntoError};
+#[cfg(feature = "alloc")]
+use crate::errors::RecodeError;
+use crate::errors::{EncodingMismatch, RecodeIntoError};
 #[cfg(feature = "alloc")]
 use crate::estring::EncString;
 use crate::{Encoding, Str};
@@ -342,8 +344,8 @@ impl EncStr {
         }
     }
 
-    /// Get this `Str` in a different [`Encoding`]. This method allocates a new [`String`] with the
-    /// desired encoding, replacing any characters that can't be represented in the destination
+    /// Get this `Str` in a different [`Encoding`]. This method allocates a new [`EncString`] with
+    /// the desired encoding, replacing any characters that can't be represented in the destination
     /// encoding with the encoding's replacement character.
     #[cfg(feature = "alloc")]
     pub fn recode_lossy(&self, encoding: Enc) -> EncString {

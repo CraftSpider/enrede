@@ -4,7 +4,6 @@ use crate::encoding;
 use crate::encoding::{Enc, RecodeCause};
 use core::error::Error;
 use core::fmt;
-use core::fmt::Formatter;
 
 /// Error encountered while re-encoding a [`Str`](crate::Str) or [`CStr`](crate::CStr) into another
 /// format
@@ -16,8 +15,8 @@ pub struct RecodeError {
 }
 
 impl RecodeError {
-    /// The length of valid data in the input before the error was encountered. Calling
-    /// [`recode`](Str::recode) again on the input sliced down to this length will succeed.
+    /// The length of valid data in the input before the error was encountered. Calling the method
+    /// again on the input sliced down to this length will succeed.
     pub fn valid_up_to(&self) -> usize {
         self.valid_up_to
     }
@@ -40,7 +39,7 @@ impl fmt::Display for RecodeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Error while recoding `Str`: invalid character for output encoding '{}'",
+            "Error while recoding string: invalid character for output encoding '{}'",
             self.char
         )
     }
@@ -48,8 +47,8 @@ impl fmt::Display for RecodeError {
 
 impl Error for RecodeError {}
 
-/// Error encountered while re-encoding a [`Str`](Str) or [`CStr`](crate::CStr) into another
-/// format in a pre-allocated buffer
+/// Error encountered while re-encoding a [`Str`](crate::Str) or [`EncStr`](crate::EncStr) into
+/// another format in a pre-allocated buffer
 #[derive(Clone, PartialEq)]
 pub struct RecodeIntoError<'a, S: ?Sized> {
     input_used: usize,
@@ -66,14 +65,14 @@ impl<'a, S: ?Sized> RecodeIntoError<'a, S> {
         }
     }
 
-    /// The length of valid data in the input before the error was encountered. Calling
-    /// [`recode_into`](Str::recode_into) again on the input sliced down to this length will succeed.
+    /// The length of valid data in the input before the error was encountered. Calling the method
+    /// again on the input sliced down to this length will succeed.
     pub fn valid_up_to(&self) -> usize {
         self.input_used
     }
 
-    /// The portion of the buffer with valid data written into it, as a [`Str`] in the desired
-    /// encoding.
+    /// The portion of the buffer with valid data written into it, as an instance of `S` in the
+    /// desired encoding.
     pub fn output_valid(&self) -> &'a S {
         self.str
     }
@@ -103,8 +102,10 @@ impl<S: ?Sized> fmt::Display for RecodeIntoError<'_, S> {
 
 impl<S: ?Sized + fmt::Debug> Error for RecodeIntoError<'_, S> {}
 
-/// Error returned when an operation is performed on a [`EncStr`] that requires one encoding but
-/// a different one is found.
+/// Error returned when an operation is performed that requires one encoding but a different one is
+/// found.
+///
+/// Most commonly returned by methods on [`EncStr`](crate::EncStr) or [`EncString`](crate::EncString).
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub struct EncodingMismatch {
@@ -125,7 +126,7 @@ impl EncodingMismatch {
 }
 
 impl fmt::Display for EncodingMismatch {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "Encoding mismatch - expected encoding {} but found {} instead",
