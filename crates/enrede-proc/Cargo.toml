@@ -10,7 +10,7 @@ proc-macro = true
 syn = "3.0"
 proc-macro2 = "1.0"
 quote = "1.0"
-enrede-core = { version = "0.1", default-features = false, features = ["alloc", "all_encodings"] }
+enrede-core = { version = "0.1", path = "../enrede-core", default-features = false, features = ["alloc", "all_encodings"] }
 
 [dev-dependencies]
-enrede = "0.2.1"
+enrede = { version = "0.2.1", path = "../.." }

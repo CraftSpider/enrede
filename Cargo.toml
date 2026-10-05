@@ -1,5 +1,6 @@
 [workspace]
 members = [".", "crates/*"]
+resolver = "2"
 
 [profile.bench]
 debug = true
@@ -63,8 +64,8 @@ jisx0208 = ["enrede-core/jisx0208"]
 ascii = ["enrede-core/ascii"]
 
 [dependencies]
-enrede-core = { version = "0.1", default-features = false }
-enrede-proc = { version = "0.1", optional = true }
+enrede-core = { version = "0.1", path = "crates/enrede-core", default-features = false }
+enrede-proc = { version = "0.1", path = "crates/enrede-proc", optional = true }
 
 [dev-dependencies]
 criterion = "0.5"
