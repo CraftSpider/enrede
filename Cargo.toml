@@ -6,7 +6,7 @@ debug = true
 
 [package]
 name = "enrede"
-version = "0.3.0"
+version = "0.2.1"
 edition = "2024"
 keywords = ["encoding", "string", "algorithm", "utf8"]
 categories = ["encoding", "algorithms"]
@@ -81,9 +81,3 @@ required-features = ["alloc", "rand"]
 
 [package.metadata.docs.rs]
 all-features = true
-
-[patch.crates-io.enrede-core]
-path = "crates/enrede-core"
-
-[patch.crates-io.enrede-proc]
-path = "crates/enrede-proc"

@@ -13,4 +13,4 @@ quote = "1.0"
 enrede-core = { version = "0.1", default-features = false, features = ["alloc", "all_encodings"] }
 
 [dev-dependencies]
-enrede = { path = "../.." }
+enrede = "0.2.1"
