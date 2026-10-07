@@ -361,23 +361,25 @@ macro_rules! enc {
                 }
             }
 
-            pub(crate) unsafe fn decode_char_unchecked(self, str: &crate::EncStr) -> (char, &crate::EncStr) {
-                match self {
+            pub(crate) fn decode_char(str: &crate::EncStr) -> (char, &crate::EncStr) {
+                match str.encoding() {
                     $(
                     $(#[cfg($($cfg)*)])*
                     Self::$encoding => {
-                        let (c, str) = $encoding::decode_char(str.downcast_unchecked());
+                        // SAFETY: Encoding of the string matches encoding being downcast to
+                        let (c, str) = $encoding::decode_char(unsafe { str.downcast_unchecked() });
                         (c, str.into())
                     }
                     ),*
                 }
             }
 
-            pub(crate) unsafe fn char_bound_unchecked(self, str: &crate::EncStr, idx: usize) -> bool {
-                match self {
+            pub(crate) fn char_bound(str: &crate::EncStr, idx: usize) -> bool {
+                match str.encoding() {
                     $(
                     $(#[cfg($($cfg)*)])*
-                    Self::$encoding => $encoding::char_bound(str.downcast_unchecked(), idx)
+                    // SAFETY: Encoding of the string matches encoding being downcast to
+                    Self::$encoding => $encoding::char_bound(unsafe { str.downcast_unchecked() }, idx)
                     ),*
                 }
             }

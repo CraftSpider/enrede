@@ -180,6 +180,8 @@ impl<E: Encoding> String<E> {
     pub fn into_boxed_str(self) -> Box<Str<E>> {
         let slice = self.into_bytes().into_boxed_slice();
         let ptr = Box::into_raw(slice) as *mut Str<E>;
+        // SAFETY: Pointer comes from Box::into_raw, and is guaranteed a valid Str by our own
+        //         validity rules.
         unsafe { Box::from_raw(ptr) }
     }
 }
@@ -345,6 +347,7 @@ impl<'de, E: Encoding> Deserialize<'de> for String<E> {
     {
         let bytes = Vec::deserialize(deserializer)?;
         match E::validate(&bytes) {
+            // SAFETY: Branch reached only if bytes are a valid string in the desired encoding
             Ok(()) => Ok(unsafe { String::from_bytes_unchecked(bytes) }),
             Err(_) => {
                 let msg = &*alloc::format!("a valid string for the {} encoding", E::shorthand());

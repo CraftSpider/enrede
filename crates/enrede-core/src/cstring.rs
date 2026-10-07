@@ -211,6 +211,8 @@ impl<E: Encoding + NullTerminable> CString<E> {
     pub fn into_boxed_cstr(self) -> Box<CStr<E>> {
         let slice = self.into_bytes_with_nul().into_boxed_slice();
         let ptr = Box::into_raw(slice) as *mut CStr<E>;
+        // SAFETY: Pointer comes from Box::into_raw, and is guaranteed a valid CStr by our own
+        //         validity rules.
         unsafe { Box::from_raw(ptr) }
     }
 }

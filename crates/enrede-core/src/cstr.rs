@@ -134,7 +134,7 @@ impl Error for FromBytesWithNulValidError {}
 /// encodings that may be used in C strings.
 ///
 /// Unlike the [`core::ffi::CStr`] type, this type implements `Deref` to [`Str<E>`]. This is because
-/// while the `std` CStr isn't guaranteed to be in any particular encoding, and may not be a valid
+/// while the `std` `CStr` isn't guaranteed to be in any particular encoding, and may not be a valid
 /// `str`, this type always contains correctly encoded data.
 #[repr(transparent)]
 pub struct CStr<E>(PhantomData<E>, [u8]);
@@ -357,7 +357,7 @@ impl<E: Encoding + NullTerminable> CStr<E> {
 
     /// Copy the data from one C string into this one, taking the data from the first range and
     /// inserting it into the second range. This method panics if any of the range ends don't fall
-    /// on a character boundary. This is the more powerful variant of [`CStr::copy_from`]`.
+    /// on a character boundary. This is the more powerful variant of [`CStr::copy_from`].
     pub fn copy_range<R1, R2>(&mut self, other: &CStr<E>, src_range: R1, dest_range: R2)
     where
         R1: RangeBounds<usize> + SliceIndex<[u8], Output = [u8]> + Clone,
@@ -472,7 +472,10 @@ impl<E: Encoding + NullTerminable> CStr<E> {
     pub fn into_cstring(self: Box<Self>) -> CString<E> {
         let len = self.len() + 1;
         let ptr = Box::into_raw(self).cast::<u8>();
+        // SAFETY: Boxed slice guaranteed to have capacity == length and be allocated with the global
+        //         allocator
         let v = unsafe { Vec::from_raw_parts(ptr, len, len) };
+        // SAFETY: `CStr<E>` guaranteed to be valid with trailing null byte
         unsafe { CString::from_vec_with_nul_unchecked(v) }
     }
 
@@ -480,6 +483,7 @@ impl<E: Encoding + NullTerminable> CStr<E> {
     /// null byte is included.
     #[cfg(feature = "alloc")]
     pub fn into_boxed_bytes_with_nul(self: Box<Self>) -> Box<[u8]> {
+        // SAFETY: Only loosens validity, direct into_raw -> from_raw chain
         unsafe { Box::from_raw(Box::into_raw(self) as *mut [u8]) }
     }
 }
@@ -626,6 +630,7 @@ impl<E: NullTerminable> Borrow<Str<E>> for CStr<E> {
 impl<E: NullTerminable> From<&CStr<E>> for Box<CStr<E>> {
     fn from(value: &CStr<E>) -> Self {
         let mut slice = Box::<[u8]>::new_uninit_slice(value.len() + 1);
+        // SAFETY: Align 1, both src and dest valid for length len + 1
         unsafe {
             ptr::copy::<u8>(
                 ptr::from_ref(value.as_bytes_with_nul()).cast(),
@@ -633,7 +638,10 @@ impl<E: NullTerminable> From<&CStr<E>> for Box<CStr<E>> {
                 value.len() + 1,
             )
         };
+        // SAFETY: Whole slice has been initialized by the copy above
         let b = unsafe { slice.assume_init() };
+        // SAFETY: Slice was copied from a valid CStr, so remains a valid CStr.
+        //         Direct into_raw -> from_raw chain.
         unsafe { Box::from_raw(Box::into_raw(b) as *mut CStr<E>) }
     }
 }

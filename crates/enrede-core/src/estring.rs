@@ -130,6 +130,7 @@ impl EncString {
     /// encoding of this string doesn't match the desired encoding.
     pub fn downcast<E: Encoding>(self) -> Result<String<E>, Self> {
         if self.encoding() == Enc::of::<E>() {
+            // SAFETY: Encodings match, we're guaranteed to be a valid instance of `String<E>`
             Ok(unsafe { String::from_bytes_unchecked(self.into_bytes()) })
         } else {
             Err(self)
@@ -143,6 +144,7 @@ impl EncString {
     ///
     /// This string's encoding must be the same as the provided `E`.
     pub unsafe fn downcast_unchecked<E: Encoding>(self) -> String<E> {
+        // SAFETY: Soundness is delegated to the caller
         unsafe { String::from_bytes_unchecked(self.into_bytes()) }
     }
 
@@ -182,12 +184,14 @@ impl Deref for EncString {
     type Target = EncStr;
 
     fn deref(&self) -> &Self::Target {
+        // SAFETY: Our internal bytes are guaranteed to be a valid string of our internal encoding
         unsafe { EncStr::from_bytes_unchecked(self.0, &self.1) }
     }
 }
 
 impl DerefMut for EncString {
     fn deref_mut(&mut self) -> &mut Self::Target {
+        // SAFETY: Our internal bytes are guaranteed to be a valid string of our internal encoding
         unsafe { EncStr::from_bytes_unchecked_mut(self.0, &mut self.1) }
     }
 }
@@ -242,6 +246,7 @@ impl<E: Encoding> From<&Str<E>> for EncString {
 
 impl<E: Encoding> From<String<E>> for EncString {
     fn from(value: String<E>) -> Self {
+        // SAFETY: The bytes of a string are guaranteed valid for the matching encoding
         unsafe { EncString::from_bytes_unchecked(Enc::of::<E>(), value.into_bytes()) }
     }
 }

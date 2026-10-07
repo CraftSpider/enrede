@@ -75,16 +75,15 @@ impl Encoding for ShiftJIS {
     }
 
     fn encode_char(c: char) -> Option<Self::Bytes> {
-        match JisX0201::encode_char(c) {
-            Some(c) => return Some(ArrayVec::from_iter([c])),
-            None => (),
+        if let Some(c) = JisX0201::encode_char(c) {
+            return Some(ArrayVec::from_iter([c]));
         }
         let (row, col) = x0208_tables::ENCODE_MAP_0208[&c];
         let row = row + 0x21;
         let row_e = if row <= 0x5E {
-            ((row + 1) / 2) + 112
+            row.div_ceil(2) + 112
         } else {
-            ((row + 1) / 2) + 176
+            row.div_ceil(2) + 176
         };
         let col_e = if row % 2 == 0 {
             col + 159
@@ -107,6 +106,7 @@ impl Encoding for ShiftJIS {
             } else {
                 DECODE_MAP_0201[first as usize - 0xA1]
             };
+            // SAFETY: String is guaranteed valid for the encoding, and contains at least 1 byte
             (c, unsafe { str.get_unchecked(1..) })
         } else {
             let second = bytes[1];
@@ -127,6 +127,7 @@ impl Encoding for ShiftJIS {
                 second - 0x9F
             };
             let c = x0208_tables::DECODE_MAP_0208[row as usize][col as usize];
+            // SAFETY: String is guaranteed valid for the encoding, and contains at least 2 bytes
             (c, unsafe { str.get_unchecked(2..) })
         }
     }
@@ -155,7 +156,7 @@ impl Encoding for ShiftJIS {
             1
         } else if x0208_tables::DECODE_MAP_0208
             .iter()
-            .any(|row| row.iter().any(|v| *v == c))
+            .any(|row| row.contains(&c))
         {
             2
         } else {
@@ -172,6 +173,7 @@ impl Distribution<char> for ShiftJIS {
         let c = rng.random_range(0..(x0208_tables::RAND_MAP_0208.len() + 158));
         if c <= 158 {
             let c = if c < 0x60 { c + 0x20 } else { c + 0x41 };
+            // SAFETY: `c` is guaranteed a valid byte for the JISX0202 encoding
             JisX0201::decode_char(unsafe { Str::from_bytes_unchecked(&[c as u8]) }).0
         } else {
             x0208_tables::RAND_MAP_0208[c - 159]

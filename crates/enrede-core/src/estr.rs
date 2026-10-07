@@ -46,9 +46,9 @@ pub use iter::*;
 /// ## Caveats
 ///
 /// - The implementation of `EncStr` is valid under tree borrows, but not stacked borrows. If you
-/// don't know what this means, you probably don't have to worry about it.
+///   don't know what this means, you probably don't have to worry about it.
 ///
-/// This is because EncStr relies on the header pattern - creating a reference with a smaller
+/// This is because `EncStr` relies on the header pattern - creating a reference with a smaller
 /// accessible range then converting it back to the longer range later. This has been deemed a
 /// desirable pattern, so is likely to be possible in any future borrow model that is chosen.
 ///
@@ -65,13 +65,18 @@ const PACK_OFFSET: u32 = PACK_SIZE.ilog2();
 impl EncStr {
     /// Create a new, empty [`EncStr`] of the specified encoding.
     pub fn empty(encoding: Enc) -> &'static EncStr {
+        // SAFETY: Empty slice is valid for any encoding
         unsafe { Self::from_bytes_unchecked(encoding, &[]) }
     }
 
     /// Create an `EncStr` from a mutable byte slice, validating the encoding and returning a
     /// [`ValidateError`] if it is not a valid string in the provided encoding.
+    ///
+    /// # Safety
+    ///
+    /// The bytes passed must be valid for the provided encoding.
     pub unsafe fn from_bytes_unchecked(encoding: Enc, bytes: &[u8]) -> &EncStr {
-        debug_assert!(encoding.validate(&bytes).is_ok());
+        debug_assert!(encoding.validate(bytes).is_ok());
         assert!(
             bytes.len() <= (usize::MAX >> PACK_OFFSET),
             "String too long - dynamically encoded strings must have enough free high bits to fit {} possible encodings.",
@@ -79,15 +84,21 @@ impl EncStr {
         );
         // Length of slice:
         let len = ((encoding as u8 as usize) << (usize::BITS - PACK_OFFSET)) + bytes.len();
+        // SAFETY: Pointer is derived from bytes, and as a ZST any length is valid
         let slice = unsafe { slice::from_raw_parts(bytes.as_ptr().cast::<()>(), len) };
         let ptr = ptr::from_ref(slice) as *const EncStr;
+        // SAFETY: Pointer to ZST is always valid
         unsafe { &*ptr }
     }
 
     /// Create an `EncStr` from a byte slice, validating the encoding and returning a
     /// [`ValidateError`] if it is not a valid string in the provided encoding.
+    ///
+    /// # Safety
+    ///
+    /// The bytes passed must be valid for the provided encoding.
     pub unsafe fn from_bytes_unchecked_mut(encoding: Enc, bytes: &mut [u8]) -> &mut EncStr {
-        debug_assert!(encoding.validate(&bytes).is_ok());
+        debug_assert!(encoding.validate(bytes).is_ok());
         assert!(
             bytes.len() <= (usize::MAX >> PACK_OFFSET),
             "String too long - dynamically encoded strings must have enough free high bits to fit {} possible encodings.",
@@ -95,8 +106,10 @@ impl EncStr {
         );
         // Length of slice:
         let len = ((encoding as u8 as usize) << (usize::BITS - PACK_OFFSET)) + bytes.len();
+        // SAFETY: Pointer is derived from bytes, and as a ZST any length is valid
         let slice = unsafe { slice::from_raw_parts_mut(bytes.as_mut_ptr().cast::<()>(), len) };
         let ptr = ptr::from_ref(slice) as *mut EncStr;
+        // SAFETY: Pointer to ZST is always valid
         unsafe { &mut *ptr }
     }
 
@@ -104,6 +117,7 @@ impl EncStr {
     /// if it is not a valid string in the provided encoding.
     pub fn from_bytes(encoding: Enc, bytes: &[u8]) -> Result<&EncStr, ValidateError> {
         encoding.validate(bytes)?;
+        // SAFETY: We've validated `bytes` is a valid string in `encoding`
         Ok(unsafe { Self::from_bytes_unchecked(encoding, bytes) })
     }
 
@@ -111,11 +125,13 @@ impl EncStr {
     /// [`ValidateError`] if it is not a valid string in the provided encoding.
     pub fn from_bytes_mut(encoding: Enc, bytes: &[u8]) -> Result<&EncStr, ValidateError> {
         encoding.validate(bytes)?;
+        // SAFETY: We've validated `bytes` is a valid string in `encoding`
         Ok(unsafe { Self::from_bytes_unchecked(encoding, bytes) })
     }
 
     /// Get the dynamic encoding of this string
     pub fn encoding(&self) -> Enc {
+        // SAFETY: Our packed encoding is guaranteed to have originated as a valid encoding number
         unsafe { Enc::try_from(self.0.len() >> (usize::BITS - PACK_OFFSET)).unwrap_unchecked() }
     }
 
@@ -131,6 +147,9 @@ impl EncStr {
 
     /// Get the underlying bytes for this string
     pub fn as_bytes(&self) -> &[u8] {
+        // SAFETY: This is only sound under tree borrows, as we're using a reference-to-header pattern
+        //         Given that, our reference is guaranteed to be derived from a byte array reference
+        //         of length matching the value returned by `self.len`.
         unsafe { slice::from_raw_parts(ptr::from_ref(&self.0).cast::<u8>(), self.len()) }
     }
 
@@ -141,6 +160,7 @@ impl EncStr {
     ///
     /// The returned reference must not be used to write invalid data into the string.
     pub unsafe fn as_bytes_mut(&mut self) -> &mut [u8] {
+        // SAFETY: See Self::as_bytes safety comment
         unsafe { slice::from_raw_parts_mut(ptr::from_mut(&mut self.0).cast::<u8>(), self.len()) }
     }
 
@@ -238,7 +258,7 @@ impl EncStr {
         match idx.cmp(&self.len()) {
             Ordering::Equal => true,
             Ordering::Greater => false,
-            Ordering::Less => unsafe { self.encoding().char_bound_unchecked(self, idx) },
+            Ordering::Less => Enc::char_bound(self, idx),
         }
     }
 
@@ -387,6 +407,7 @@ impl EncStr {
     /// encoding of this string doesn't match the desired encoding.
     pub fn downcast<E: Encoding>(&self) -> Option<&'_ Str<E>> {
         if self.encoding() == Enc::of::<E>() {
+            // SAFETY: Encodings match, we're guaranteed to be a valid instance of `Str<E>`
             Some(unsafe { Str::from_bytes_unchecked(self.as_bytes()) })
         } else {
             None
@@ -400,6 +421,7 @@ impl EncStr {
     ///
     /// This string's encoding must be the same as the provided `E`.
     pub unsafe fn downcast_unchecked<E: Encoding>(&self) -> &'_ Str<E> {
+        // SAFETY: Soundness is delegated to the caller
         unsafe { Str::from_bytes_unchecked(self.as_bytes()) }
     }
 
@@ -487,7 +509,7 @@ impl EncStr {
     pub fn try_chars(&self) -> Option<&[char]> {
         let len = self.as_bytes().len();
         let ptr = ptr::from_ref(&self.0);
-        if self.encoding() != Self::UTF32 || (ptr.cast::<()>() as usize) % align_of::<char>() != 0 {
+        if self.encoding() != Self::UTF32 || !ptr.addr().is_multiple_of(align_of::<char>()) {
             None
         } else {
             // SAFETY: We have guaranteed correct alignment and encoding, and Utf32 encoding is
@@ -565,6 +587,7 @@ impl ToOwned for EncStr {
 
     fn to_owned(&self) -> Self::Owned {
         let bytes = self.as_bytes().to_vec();
+        // SAFETY: Our internal bytes are guaranteed valid for our encoding
         unsafe { EncString::from_bytes_unchecked(self.encoding(), bytes) }
     }
 }
@@ -573,6 +596,7 @@ impl ToOwned for EncStr {
 
 impl<'a, E: Encoding> From<&'a Str<E>> for &'a EncStr {
     fn from(value: &'a Str<E>) -> Self {
+        // SAFETY: The bytes of a string are guaranteed valid for the matching encoding
         unsafe { EncStr::from_bytes_unchecked(Enc::of::<E>(), value.as_bytes()) }
     }
 }

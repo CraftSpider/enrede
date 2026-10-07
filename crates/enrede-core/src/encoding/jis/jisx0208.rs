@@ -74,11 +74,13 @@ impl Encoding for JisX0208 {
         let bytes = str.as_bytes();
         let first = bytes[0];
         if (..0x21).contains(&first) || first == 0x7F {
+            // SAFETY: String is guaranteed valid for the encoding, and contains at least 1 byte
             (char::from(first), unsafe { str.get_unchecked(1..) })
         } else {
             let second = bytes[1];
             let (row, col) = (first - 0x21, second - 0x21);
             let c = x0208_tables::DECODE_MAP_0208[row as usize][col as usize];
+            // SAFETY: String is guaranteed valid for the encoding, and contains at least 2 bytes
             (c, unsafe { str.get_unchecked(2..) })
         }
     }
@@ -107,7 +109,7 @@ impl Encoding for JisX0208 {
             1
         } else if x0208_tables::DECODE_MAP_0208
             .iter()
-            .any(|row| row.iter().any(|v| *v == c))
+            .any(|row| row.contains(&c))
         {
             2
         } else {

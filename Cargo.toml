@@ -7,7 +7,11 @@ elided_lifetimes_in_paths = "warn"
 missing_docs = "warn"
 
 [workspace.lints.clippy]
-pedantic = "warn"
+#pedantic = { level = "warn", priority = -1 }
+manual_contains = "warn"
+doc_markdown = "warn"
+match_overlapping_arm = "allow"
+undocumented_unsafe_blocks = "warn"
 
 [profile.bench]
 debug = true

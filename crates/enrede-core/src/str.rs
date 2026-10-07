@@ -379,13 +379,17 @@ impl<E: Encoding> Str<E> {
     pub fn into_string(self: Box<Self>) -> String<E> {
         let len = self.len();
         let ptr = Box::into_raw(self).cast::<u8>();
+        // SAFETY: Boxed slice guaranteed to have capacity == length and be allocated with the global
+        //         allocator
         let v = unsafe { Vec::from_raw_parts(ptr, len, len) };
+        // SAFETY: `Str<E>` guaranteed to be valid
         unsafe { String::from_bytes_unchecked(v) }
     }
 
     /// Converts a `Box<Str<E>>` into a `Box<[u8]>` without copying or allocating.
     #[cfg(feature = "alloc")]
     pub fn into_boxed_bytes(self: Box<Self>) -> Box<[u8]> {
+        // SAFETY: Only loosens validity, direct into_raw -> from_raw chain
         unsafe { Box::from_raw(Box::into_raw(self) as *mut [u8]) }
     }
 }
@@ -483,7 +487,7 @@ impl Str<Utf32> {
     pub fn try_chars(&self) -> Option<&[char]> {
         let len = self.len();
         let ptr = ptr::from_ref(&self.1);
-        if (ptr.cast::<()>() as usize) % align_of::<char>() != 0 {
+        if !ptr.addr().is_multiple_of(align_of::<char>()) {
             None
         } else {
             // SAFETY: We have guaranteed correct alignment, and Utf32 encoding is exactly
@@ -567,6 +571,7 @@ impl<E: Encoding> AsRef<[u8]> for Str<E> {
 impl<E: Encoding> From<&Str<E>> for Box<Str<E>> {
     fn from(value: &Str<E>) -> Self {
         let mut slice = Box::<[u8]>::new_uninit_slice(value.len());
+        // SAFETY: Align 1, both src and dest valid for length len
         unsafe {
             ptr::copy::<u8>(
                 ptr::from_ref(value.as_bytes()).cast(),
@@ -574,7 +579,10 @@ impl<E: Encoding> From<&Str<E>> for Box<Str<E>> {
                 value.len(),
             )
         };
+        // SAFETY: Whole slice has been initialized by the copy above
         let b = unsafe { slice.assume_init() };
+        // SAFETY: Slice was copied from a valid Str, so remains a valid Str.
+        //         Direct into_raw -> from_raw chain.
         unsafe { Box::from_raw(Box::into_raw(b) as *mut Str<E>) }
     }
 }

@@ -88,8 +88,5 @@ fn str_inner(lit: TokenStream) -> Result<TokenStream, syn::Error> {
 /// See [`enrede::str`](https://docs.rs/enrede/macro.str.html) for further documentation.
 #[proc_macro]
 pub fn str(lit: TokenStream) -> TokenStream {
-    match str_inner(lit.into()) {
-        Ok(ts) => ts.into(),
-        Err(e) => e.into_compile_error().into(),
-    }
+    str_inner(lit).unwrap_or_else(|e| e.into_compile_error().into())
 }

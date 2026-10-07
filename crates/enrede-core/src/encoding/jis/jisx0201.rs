@@ -91,6 +91,7 @@ impl Distribution<char> for JisX0201 {
         // Number of JIS 0201 characters
         let c = rng.random_range(0..159);
         let c = if c < 0x60 { c + 0x20 } else { c + 0x41 };
+        // SAFETY: `c` can only be a valid character in the encoding at this point
         Self::decode_char(unsafe { Str::from_bytes_unchecked(&[c]) }).0
     }
 }
