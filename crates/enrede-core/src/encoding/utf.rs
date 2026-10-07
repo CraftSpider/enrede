@@ -21,7 +21,7 @@ impl Encoding for Utf8 {
         "utf8"
     }
 
-    fn dyn_enc() -> Enc {
+    fn enc() -> Enc {
         Enc::Utf8
     }
 
@@ -113,7 +113,7 @@ macro_rules! utf16_impl {
                 $shorthand
             }
 
-            fn dyn_enc() -> Enc {
+            fn enc() -> Enc {
                 Enc::$name
             }
 
@@ -259,7 +259,7 @@ macro_rules! utf32_impl {
                 $shorthand
             }
 
-            fn dyn_enc() -> Enc {
+            fn enc() -> Enc {
                 Enc::$name
             }
 

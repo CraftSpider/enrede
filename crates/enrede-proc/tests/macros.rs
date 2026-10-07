@@ -1,3 +1,5 @@
+//! Proc macro tests
+
 use enrede_proc::str;
 
 const SHIFTJIS_EXAMPLE: &[u8] = &[

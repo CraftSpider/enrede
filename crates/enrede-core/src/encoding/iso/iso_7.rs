@@ -31,7 +31,7 @@ impl Encoding for Iso8859_7 {
         "iso8859_7"
     }
 
-    fn dyn_enc() -> Enc {
+    fn enc() -> Enc {
         Enc::Iso8859_7
     }
 

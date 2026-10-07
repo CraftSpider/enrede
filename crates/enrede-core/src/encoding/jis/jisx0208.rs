@@ -22,7 +22,7 @@ impl Encoding for JisX0208 {
         "jisx0208"
     }
 
-    fn dyn_enc() -> Enc {
+    fn enc() -> Enc {
         Enc::JisX0208
     }
 

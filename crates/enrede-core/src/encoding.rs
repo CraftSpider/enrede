@@ -40,6 +40,7 @@ mod utf;
 mod win;
 
 #[cfg(feature = "ascii")]
+#[doc(inline)]
 pub use ascii::*;
 #[cfg(any(
     feature = "iso8859_1",
@@ -58,13 +59,18 @@ pub use ascii::*;
     feature = "iso8859_15",
     feature = "iso8859_16",
 ))]
+#[doc(inline)]
 pub use iso::*;
 #[cfg(any(feature = "shiftjis", feature = "jisx0201", feature = "jisx0208"))]
+#[doc(inline)]
 pub use jis::*;
 #[cfg(feature = "mac_roman")]
+#[doc(inline)]
 pub use mac::*;
+#[doc(inline)]
 pub use utf::*;
 #[cfg(any(feature = "win1251", feature = "win1252"))]
+#[doc(inline)]
 pub use win::*;
 
 mod sealed {
@@ -100,10 +106,18 @@ impl ArrayLike for u8 {
 /// This trait is sealed, and multiple internal items are unstable, preventing downstream
 /// implementations. If you want an encoding not currently supported, please open an issue.
 pub trait Encoding: Default + Sealed {
+    /// The replacement character to use for this encoding - when doing lossy conversions, this
+    /// is the value that will replace invalid characters.
     #[doc(hidden)]
     const REPLACEMENT: char;
+
+    /// The maximum length of an encoded character.
     #[doc(hidden)]
     const MAX_LEN: usize;
+
+    /// A fixed-size type that can hold any character in this encoding. Generally one of [`u8`],
+    /// [`[u8; N]`](array), or [`ArrayVec<u8, N>`]. In the array cases, `N` should match
+    /// [`Self::MAX_LEN`].
     #[doc(hidden)]
     type Bytes: ArrayLike;
 
@@ -112,8 +126,10 @@ pub trait Encoding: Default + Sealed {
     /// encodings.
     fn shorthand() -> &'static str;
 
+    /// Get the [`Enc`] value associated with this encoding. This is equivalent to calling
+    /// [`Enc::of`] with this type.
     #[doc(hidden)]
-    fn dyn_enc() -> Enc;
+    fn enc() -> Enc;
 
     /// Given a byte slice, determine whether it is valid for the current encoding.
     fn validate(bytes: &[u8]) -> Result<(), ValidateError>;
@@ -156,19 +172,24 @@ pub trait Encoding: Default + Sealed {
         })
     }
 
+    /// Convert a character into it's encoded form. Returns `None` if the character isn't supported
+    /// by this encoding.
     #[doc(hidden)]
     fn encode_char(c: char) -> Option<Self::Bytes>;
+
+    /// Decode a single character from a string in this encoding, returning the decoded character
+    /// and the remainder of the string after the character. Panics if the string is empty.
     #[doc(hidden)]
     fn decode_char(str: &Str<Self>) -> (char, &Str<Self>);
 
     /// Determine whether the provided index is a character boundary in the provided string.
-    /// Implementations may generally assume idx is in-bounds, though this is not a safety
-    /// precondition.
-    #[doc(hidden)]
+    ///
+    /// If the index isn't in-bounds, implementations may panic, return true or false arbitrarily,
+    /// or otherwise misbehave.
     fn char_bound(str: &Str<Self>, idx: usize) -> bool;
 
     /// Get the length of the given character in this encoding. Characters not supported by the
-    /// encoding are expected to return 0 currently, this may change in future versions.
+    /// encoding may return 0, or any valid encoding size.
     fn char_len(c: char) -> usize;
 }
 
@@ -206,10 +227,10 @@ macro_rules! enc {
         impl Enc {
             /// Get the [`Enc`] value for the provided encoding
             pub fn of<E: Encoding>() -> Enc {
-                E::dyn_enc()
+                E::enc()
             }
 
-            /// Convert a shorthand string into a dynamic encoding.
+            /// Convert a shorthand name (See [`Encoding::shorthand`]) into a dynamic encoding.
             pub fn from_shorthand(s: &str) -> Option<Enc> {
                 if s == "utf16" {
                     return Some(Enc::of::<Utf16>());
@@ -250,7 +271,7 @@ macro_rules! enc {
             pub(crate) fn all_dyn() -> impl Iterator<Item = Enc> {
                 [$(
                 $(#[cfg($($cfg)*)])*
-                $encoding::dyn_enc()
+                $encoding::enc()
                 ),*].into_iter()
             }
 
@@ -273,8 +294,8 @@ macro_rules! enc {
                 }
             }
 
-            #[allow(unused)]
-            pub(crate) fn shorthand(self) -> &'static str {
+            /// Get the shorthand for this encoding, matching [`Encoding::shorthand`].
+            pub fn shorthand(self) -> &'static str {
                 match self {
                     $(
                     $(#[cfg($($cfg)*)])*

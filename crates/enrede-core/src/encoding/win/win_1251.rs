@@ -49,7 +49,7 @@ impl Encoding for Win1251 {
         "win1251"
     }
 
-    fn dyn_enc() -> Enc {
+    fn enc() -> Enc {
         Enc::Win1251
     }
 

@@ -2,6 +2,12 @@
 name = "enrede-proc"
 version = "0.1.0"
 edition = "2024"
+description = "Proc macros for the enrede string encoding library."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/CraftSpider/enrede"
+
+[lints]
+workspace = true
 
 [lib]
 proc-macro = true

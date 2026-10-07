@@ -27,7 +27,7 @@ impl Encoding for JisX0201 {
         "jisx0201"
     }
 
-    fn dyn_enc() -> Enc {
+    fn enc() -> Enc {
         Enc::JisX0201
     }
 

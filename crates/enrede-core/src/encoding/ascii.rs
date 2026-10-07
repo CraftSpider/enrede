@@ -20,7 +20,7 @@ impl Encoding for Ascii {
         "ascii"
     }
 
-    fn dyn_enc() -> Enc {
+    fn enc() -> Enc {
         Enc::Ascii
     }
 
@@ -89,7 +89,7 @@ impl Encoding for ExtendedAscii {
         "ascii_ext"
     }
 
-    fn dyn_enc() -> Enc {
+    fn enc() -> Enc {
         Enc::ExtendedAscii
     }
 

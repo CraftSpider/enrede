@@ -22,7 +22,7 @@ impl Encoding for ShiftJIS {
         "shiftjis"
     }
 
-    fn dyn_enc() -> Enc {
+    fn enc() -> Enc {
         Enc::ShiftJIS
     }
 

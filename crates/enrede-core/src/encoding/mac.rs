@@ -33,7 +33,7 @@ impl Encoding for MacRoman {
         "mac_roman"
     }
 
-    fn dyn_enc() -> Enc {
+    fn enc() -> Enc {
         Enc::MacRoman
     }
 

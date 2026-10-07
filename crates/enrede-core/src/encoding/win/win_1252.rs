@@ -25,7 +25,7 @@ impl Encoding for Win1252 {
         "win1252"
     }
 
-    fn dyn_enc() -> Enc {
+    fn enc() -> Enc {
         Enc::Win1252
     }
 
@@ -114,7 +114,7 @@ impl Encoding for Win1252Loose {
         "win1252_loose"
     }
 
-    fn dyn_enc() -> Enc {
+    fn enc() -> Enc {
         Enc::Win1252Loose
     }
 

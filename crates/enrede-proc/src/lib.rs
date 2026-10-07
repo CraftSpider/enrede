@@ -1,3 +1,5 @@
+//! Proc macros for [`enrede`](https://docs.rs/enrede).
+
 use enrede_core::EncString;
 use enrede_core::encoding::Enc;
 use proc_macro::TokenStream;
@@ -28,7 +30,7 @@ impl Str {
 }
 
 impl Parse for Str {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         let l = input.lookahead1();
 
         if l.peek(LitStr) {
@@ -81,6 +83,9 @@ fn str_inner(lit: TokenStream) -> Result<TokenStream, syn::Error> {
     Ok(toks.into())
 }
 
+/// Macro to create arbitrary encoding string literals at compile-time.
+///
+/// See [`enrede::str`](https://docs.rs/enrede/macro.str.html) for further documentation.
 #[proc_macro]
 pub fn str(lit: TokenStream) -> TokenStream {
     match str_inner(lit.into()) {
