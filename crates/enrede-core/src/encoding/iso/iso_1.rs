@@ -2,7 +2,7 @@ use crate::encoding::sealed::Sealed;
 use crate::encoding::{Enc, NullTerminable, ValidateError};
 use crate::{Encoding, Str};
 #[cfg(feature = "rand")]
-use rand::{distr::Distribution, Rng};
+use rand::{Rng, distr::Distribution};
 
 const DECODE_MAP_8859_1: [char; 96] = [
     ' ', '¡', '¢', '£', '¤', '¥', '¦', '§', '¨', '©', 'ª', '«', '¬', '\u{AD}', '®', '¯', '°', '±',
@@ -110,6 +110,7 @@ mod tests {
 
     #[test]
     fn test_decode() {
+        // SAFETY: Constant guaranteed valid ISO8859-1
         let s = unsafe { Str::from_bytes_unchecked(HELLO_WORLD_ISO1) };
         let (char, s) = Iso8859_1::decode_char(s);
         assert_eq!(char, '¡');

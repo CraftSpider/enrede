@@ -3,7 +3,7 @@ use crate::encoding::{Enc, Encoding, NullTerminable, ValidateError};
 use crate::str::Str;
 use arrayvec::ArrayVec;
 #[cfg(feature = "rand")]
-use rand::{distr::Distribution, Rng};
+use rand::{Rng, distr::Distribution};
 
 /// The [UTF-8](https://en.wikipedia.org/wiki/UTF-8) encoding
 #[non_exhaustive]
@@ -396,11 +396,13 @@ mod tests {
 
     #[test]
     fn test_char_boundary_utf16le() {
+        // SAFETY: Constant manually validated UTF-16LE
         let str = unsafe { Str::from_bytes_unchecked(b"A\0\x01\xD8\x37\xDCb\0") };
         assert!(Utf16LE::char_bound(str, 2));
         assert!(!Utf16LE::char_bound(str, 4));
         assert!(Utf16LE::char_bound(str, 6));
 
+        // SAFETY: Constant manually validated UTF-16LE
         let str =
             unsafe { Str::from_bytes_unchecked(&[174, 95, 223, 142, 99, 107, 209, 158, 212, 154]) };
         assert!(!Utf16LE::char_bound(str, 1));
@@ -473,11 +475,13 @@ mod tests {
 
     #[test]
     fn test_char_boundary_utf16be() {
+        // SAFETY: Constant manually validated UTF-16BE
         let str = unsafe { Str::from_bytes_unchecked(b"\0A\xD8\x01\xDC\x37\0b") };
         assert!(Utf16BE::char_bound(str, 2));
         assert!(!Utf16BE::char_bound(str, 4));
         assert!(Utf16BE::char_bound(str, 6));
 
+        // SAFETY: Constant manually validated UTF-16BE
         let str =
             unsafe { Str::from_bytes_unchecked(&[95, 174, 142, 223, 107, 99, 158, 209, 154, 212]) };
         assert!(!Utf16BE::char_bound(str, 1));

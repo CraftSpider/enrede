@@ -800,6 +800,7 @@ mod tests {
     #[cfg(feature = "alloc")]
     #[test]
     fn to_boxed_str() {
+        // SAFETY: Constant guaranteed valid UTF16
         let s = unsafe { Str::<Utf16>::from_bytes_unchecked(UTF16_HELLO_WORLD) };
         let b = Box::<Str<_>>::from(s);
 

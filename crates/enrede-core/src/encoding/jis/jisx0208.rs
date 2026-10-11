@@ -4,7 +4,7 @@ use crate::encoding::{Enc, NullTerminable, ValidateError};
 use crate::{Encoding, Str};
 use arrayvec::ArrayVec;
 #[cfg(feature = "rand")]
-use rand::{distr::Distribution, Rng};
+use rand::{Rng, distr::Distribution};
 
 /// The [JIS X 0208](https://en.wikipedia.org/wiki/JIS_X_0208) encoding.
 #[derive(Debug, Default)]
@@ -125,11 +125,7 @@ impl Distribution<char> for JisX0208 {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> char {
         let c = rng.random_range(0..x0208_tables::RAND_MAP_0208.len() + 22);
         if c <= 21 {
-            if c == 21 {
-                '\x7F'
-            } else {
-                char::from(c as u8)
-            }
+            if c == 21 { '\x7F' } else { char::from(c as u8) }
         } else {
             x0208_tables::RAND_MAP_0208[c - 22]
         }
@@ -152,26 +148,27 @@ mod tests {
 
     #[test]
     fn test_decode() {
+        // SAFETY: Constant guaranteed valid JISX0208
         let str = unsafe { Str::<JisX0208>::from_bytes_unchecked(HELLO_WORLD_JIS0208) };
-        let (c, str) = JisX0208::decode_char(&str);
+        let (c, str) = JisX0208::decode_char(str);
         assert_eq!(c, 'ハ');
-        let (c, str) = JisX0208::decode_char(&str);
+        let (c, str) = JisX0208::decode_char(str);
         assert_eq!(c, 'ロ');
-        let (c, str) = JisX0208::decode_char(&str);
+        let (c, str) = JisX0208::decode_char(str);
         assert_eq!(c, 'ー');
-        let (c, str) = JisX0208::decode_char(&str);
+        let (c, str) = JisX0208::decode_char(str);
         assert_eq!(c, 'ワ');
-        let (c, str) = JisX0208::decode_char(&str);
+        let (c, str) = JisX0208::decode_char(str);
         assert_eq!(c, 'ー');
-        let (c, str) = JisX0208::decode_char(&str);
+        let (c, str) = JisX0208::decode_char(str);
         assert_eq!(c, 'ル');
-        let (c, str) = JisX0208::decode_char(&str);
+        let (c, str) = JisX0208::decode_char(str);
         assert_eq!(c, 'ド');
-        let (c, str) = JisX0208::decode_char(&str);
+        let (c, str) = JisX0208::decode_char(str);
         assert_eq!(c, '¥');
-        let (c, str) = JisX0208::decode_char(&str);
+        let (c, str) = JisX0208::decode_char(str);
         assert_eq!(c, 'n');
-        let (c, _) = JisX0208::decode_char(&str);
+        let (c, _) = JisX0208::decode_char(str);
         assert_eq!(c, 'ぁ');
     }
 }

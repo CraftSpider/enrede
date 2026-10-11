@@ -238,26 +238,27 @@ mod tests {
 
     #[test]
     fn test_decode() {
+        // SAFETY: Constant guaranteed valid ShiftJIS
         let str = unsafe { Str::<ShiftJIS>::from_bytes_unchecked(HELLO_WORLD_SHIFTJIS) };
-        let (c, str) = ShiftJIS::decode_char(&str);
+        let (c, str) = ShiftJIS::decode_char(str);
         assert_eq!(c, 'ハ');
-        let (c, str) = ShiftJIS::decode_char(&str);
+        let (c, str) = ShiftJIS::decode_char(str);
         assert_eq!(c, 'ロ');
-        let (c, str) = ShiftJIS::decode_char(&str);
+        let (c, str) = ShiftJIS::decode_char(str);
         assert_eq!(c, 'ー');
-        let (c, str) = ShiftJIS::decode_char(&str);
+        let (c, str) = ShiftJIS::decode_char(str);
         assert_eq!(c, 'ワ');
-        let (c, str) = ShiftJIS::decode_char(&str);
+        let (c, str) = ShiftJIS::decode_char(str);
         assert_eq!(c, 'ー');
-        let (c, str) = ShiftJIS::decode_char(&str);
+        let (c, str) = ShiftJIS::decode_char(str);
         assert_eq!(c, 'ル');
-        let (c, str) = ShiftJIS::decode_char(&str);
+        let (c, str) = ShiftJIS::decode_char(str);
         assert_eq!(c, 'ド');
-        let (c, str) = ShiftJIS::decode_char(&str);
+        let (c, str) = ShiftJIS::decode_char(str);
         assert_eq!(c, '¥');
-        let (c, str) = ShiftJIS::decode_char(&str);
+        let (c, str) = ShiftJIS::decode_char(str);
         assert_eq!(c, 'n');
-        let (c, _) = ShiftJIS::decode_char(&str);
+        let (c, _) = ShiftJIS::decode_char(str);
         assert_eq!(c, 'ぁ');
     }
 }
