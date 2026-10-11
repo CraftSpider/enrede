@@ -20,13 +20,13 @@ use core::slice::SliceIndex;
 use core::{fmt, ptr, slice};
 #[cfg(feature = "serde")]
 use serde::{
-    de::{self, Unexpected},
     Deserialize, Deserializer, Serialize, Serializer,
+    de::{self, Unexpected},
 };
 
 #[cfg(feature = "alloc")]
 use crate::encoding::RecodeCause;
-use crate::encoding::{AlwaysValid, Encoding, Utf16, Utf32, Utf8, ValidateError};
+use crate::encoding::{AlwaysValid, Encoding, Utf8, Utf16, Utf32, ValidateError};
 #[cfg(feature = "alloc")]
 use crate::string::String;
 
@@ -422,7 +422,7 @@ impl Str<Utf8> {
     /// The bytes passed must be valid UTF-8.
     pub unsafe fn from_utf8_unchecked(str: &[u8]) -> &Self {
         // SAFETY: Precondition that input is valid UTF-8
-        Self::from_bytes_unchecked(str)
+        unsafe { Self::from_bytes_unchecked(str) }
     }
 
     /// Equivalent to [`Str::from_bytes`] but for UTF-8 specifically
@@ -451,7 +451,7 @@ impl Str<Utf16> {
     /// The bytes passed must be valid UTF-16.
     pub unsafe fn from_utf16_unchecked(str: &[u16]) -> &Self {
         // SAFETY: Precondition that input is valid UTF-16
-        Self::from_bytes_unchecked(cast_slice(str))
+        unsafe { Self::from_bytes_unchecked(cast_slice(str)) }
     }
 
     /// Equivalent to [`Str::from_bytes`] but for UTF-16 specifically
@@ -468,7 +468,7 @@ impl Str<Utf32> {
     /// The bytes passed must be valid UTF-32.
     pub unsafe fn from_utf32_unchecked(str: &[u32]) -> &Self {
         // SAFETY: Precondition that input is valid UTF-32
-        Self::from_bytes_unchecked(cast_slice(str))
+        unsafe { Self::from_bytes_unchecked(cast_slice(str)) }
     }
 
     /// Equivalent to [`Str::from_bytes`] but for UTF-32 specifically

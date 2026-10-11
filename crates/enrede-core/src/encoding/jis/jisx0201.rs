@@ -2,7 +2,7 @@ use crate::encoding::sealed::Sealed;
 use crate::encoding::{Enc, NullTerminable, ValidateError};
 use crate::{Encoding, Str};
 #[cfg(feature = "rand")]
-use rand::{distr::Distribution, Rng};
+use rand::{Rng, distr::Distribution};
 
 pub(crate) const DECODE_MAP_0201: [char; 63] = [
     '｡', '｢', '｣', '､', '･', 'ｦ', 'ｧ', 'ｨ', 'ｩ', 'ｪ', 'ｫ', 'ｬ', 'ｭ', 'ｮ', 'ｯ', 'ｰ', 'ｱ', 'ｲ', 'ｳ',
@@ -91,7 +91,8 @@ impl Distribution<char> for JisX0201 {
         // Number of JIS 0201 characters
         let c = rng.random_range(0..159);
         let c = if c < 0x60 { c + 0x20 } else { c + 0x41 };
+        let a = [c];
         // SAFETY: `c` can only be a valid character in the encoding at this point
-        Self::decode_char(unsafe { Str::from_bytes_unchecked(&[c]) }).0
+        Self::decode_char(unsafe { Str::from_bytes_unchecked(&a) }).0
     }
 }

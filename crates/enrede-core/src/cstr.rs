@@ -336,9 +336,11 @@ impl<E: Encoding + NullTerminable> CStr<E> {
     ///
     /// The returned reference must not be used to write null bytes into the C string.
     pub unsafe fn as_str_mut(&mut self) -> &mut Str<E> {
-        let bytes = self.as_bytes_with_nul_mut();
+        // SAFETY: We pass the safety precondition onto the caller
+        let bytes = unsafe { self.as_bytes_with_nul_mut() };
         let len = bytes.len();
-        Str::from_bytes_unchecked_mut(&mut bytes[..len - 1])
+        // SAFETY: Our internal bytes are guaranteed valid for the encoding. 
+        unsafe { Str::from_bytes_unchecked_mut(&mut bytes[..len - 1]) }
     }
 
     /// Copy the data of another C-string into this C-string. Due to the limitations of slicing C

@@ -434,7 +434,7 @@ impl EncStr {
     /// The bytes passed must be valid UTF-8.
     pub unsafe fn from_utf8_unchecked(str: &[u8]) -> &Self {
         // SAFETY: Precondition that input is valid UTF-8
-        Self::from_bytes_unchecked(Enc::Utf8, str)
+        unsafe { Self::from_bytes_unchecked(Enc::Utf8, str) }
     }
 
     /// Equivalent to [`EncStr::from_bytes`] but for UTF-8 specifically
@@ -467,7 +467,7 @@ impl EncStr {
     /// The bytes passed must be valid UTF-16 in little endian.
     pub unsafe fn from_utf16_unchecked(str: &[u16]) -> &Self {
         // SAFETY: Precondition that input is valid UTF-16
-        Self::from_bytes_unchecked(Enc::Utf16LE, cast_slice(str))
+        unsafe { Self::from_bytes_unchecked(Enc::Utf16LE, cast_slice(str)) }
     }
 
     /// Equivalent to [`EncStr::from_bytes`] but for UTF-16 specifically.
@@ -490,7 +490,7 @@ impl EncStr {
     /// The bytes passed must be valid UTF-32 in the native endian.
     pub unsafe fn from_utf32_unchecked(str: &[u32]) -> &Self {
         // SAFETY: Precondition that input is valid UTF-32
-        Self::from_bytes_unchecked(Self::UTF32, cast_slice(str))
+        unsafe { Self::from_bytes_unchecked(Self::UTF32, cast_slice(str)) }
     }
 
     /// Equivalent to [`EncStr::from_bytes`] but for UTF-32 specifically

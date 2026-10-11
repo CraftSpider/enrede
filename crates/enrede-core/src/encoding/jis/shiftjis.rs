@@ -1,10 +1,10 @@
 use crate::encoding::jis::x0208_tables;
 use crate::encoding::sealed::Sealed;
-use crate::encoding::{Enc, JisX0201, NullTerminable, ValidateError, DECODE_MAP_0201};
+use crate::encoding::{DECODE_MAP_0201, Enc, JisX0201, NullTerminable, ValidateError};
 use crate::{Encoding, Str};
 use arrayvec::ArrayVec;
 #[cfg(feature = "rand")]
-use rand::{distr::Distribution, Rng};
+use rand::{Rng, distr::Distribution};
 
 /// The [ShiftJIS](https://en.wikipedia.org/wiki/Shift_JIS) encoding.
 #[derive(Debug, Default)]
@@ -172,9 +172,10 @@ impl Distribution<char> for ShiftJIS {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> char {
         let c = rng.random_range(0..(x0208_tables::RAND_MAP_0208.len() + 158));
         if c <= 158 {
-            let c = if c < 0x60 { c + 0x20 } else { c + 0x41 };
+            let c = if c < 0x60 { c + 0x20 } else { c + 0x41 } as u8;
+            let a = [c];
             // SAFETY: `c` is guaranteed a valid byte for the JISX0202 encoding
-            JisX0201::decode_char(unsafe { Str::from_bytes_unchecked(&[c as u8]) }).0
+            JisX0201::decode_char(unsafe { Str::from_bytes_unchecked(&a) }).0
         } else {
             x0208_tables::RAND_MAP_0208[c - 159]
         }
