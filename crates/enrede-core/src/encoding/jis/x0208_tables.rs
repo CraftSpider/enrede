@@ -785,7 +785,7 @@ pub const DECODE_MAP_0208: &[[char; 94]; 84] = &[
     ],
 ];
 
-pub const ENCODE_MAP_0208: phf::Map<char, (usize, usize)> = phf::phf_map! {
+pub const ENCODE_MAP_0208: phf::Map<char, (u8, u8)> = phf::phf_map! {
     '!' => (0, 9),
     '#' => (0, 83),
     '$' => (0, 79),
@@ -8206,6 +8206,6 @@ fn gen_encode_map() {
             out.push((c, (t_idx, r_idx)));
         }
     }
-    out.sort();
+    out.sort_unstable();
     std::println!("{:?}", out);
 }

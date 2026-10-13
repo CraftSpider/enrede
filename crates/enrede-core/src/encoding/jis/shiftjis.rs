@@ -90,7 +90,7 @@ impl Encoding for ShiftJIS {
         } else {
             col + 64 + (col / 63)
         };
-        Some(ArrayVec::from([row_e as u8, col_e as u8]))
+        Some(ArrayVec::from([row_e, col_e]))
     }
 
     fn decode_char(str: &Str<Self>) -> (char, &Str<Self>) {

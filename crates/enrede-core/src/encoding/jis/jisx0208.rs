@@ -66,7 +66,7 @@ impl Encoding for JisX0208 {
             Some(ArrayVec::from_iter([c as u8]))
         } else {
             let (row, col) = x0208_tables::ENCODE_MAP_0208[&c];
-            Some(ArrayVec::from([row as u8 + 0x21, col as u8 + 0x21]))
+            Some(ArrayVec::from([row + 0x21, col + 0x21]))
         }
     }
 
