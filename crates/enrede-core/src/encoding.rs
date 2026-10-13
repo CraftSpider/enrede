@@ -615,7 +615,9 @@ mod tests {
         for e in Enc::all() {
             let short = e.shorthand();
             if !set.insert(short) {
-                panic!("Duplicate encoding shorthand {short}. All encodings should have a unique shorthand.")
+                panic!(
+                    "Duplicate encoding shorthand {short}. All encodings should have a unique shorthand."
+                )
             }
         }
     }
@@ -625,7 +627,10 @@ mod tests {
         let mut set = BTreeSet::new();
         for e in Enc::all_dyn() {
             if !set.insert(e) {
-                panic!("Variant for shorthand {} returned by multiple encoding implementations. All encodings should return a unique variant.", e.shorthand())
+                panic!(
+                    "Variant for shorthand {} returned by multiple encoding implementations. All encodings should return a unique variant.",
+                    e.shorthand()
+                )
             }
         }
     }

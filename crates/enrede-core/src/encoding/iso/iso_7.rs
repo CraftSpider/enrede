@@ -2,7 +2,7 @@ use crate::encoding::sealed::Sealed;
 use crate::encoding::{Enc, NullTerminable, ValidateError};
 use crate::{Encoding, Str};
 #[cfg(feature = "rand")]
-use rand::{distr::Distribution, Rng};
+use rand::{Rng, distr::Distribution};
 
 const DECODE_MAP_8859_7: [char; 96] = [
     ' ', '\u{2018}', '\u{2019}', '£', '€', '₯', '¦', '§', '¨', '©', 'ͺ', '«', '¬', '\u{AD}',

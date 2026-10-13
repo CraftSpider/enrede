@@ -2,9 +2,9 @@ use crate::encoding::sealed::Sealed;
 use crate::encoding::{AlwaysValid, Enc, NullTerminable, ValidateError};
 use crate::{Encoding, Str};
 #[cfg(feature = "rand")]
-use rand::distr::Distribution;
-#[cfg(feature = "rand")]
 use rand::Rng;
+#[cfg(feature = "rand")]
+use rand::distr::Distribution;
 
 const DECODE_MAP_ROMAN: [char; 128] = [
     'Ä', 'Å', 'Ç', 'É', 'Ñ', 'Ö', 'Ü', 'á', 'à', 'â', 'ä', 'ã', 'å', 'ç', 'é', 'è', 'ê', 'ë', 'í',

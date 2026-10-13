@@ -339,7 +339,7 @@ impl<E: Encoding + NullTerminable> CStr<E> {
         // SAFETY: We pass the safety precondition onto the caller
         let bytes = unsafe { self.as_bytes_with_nul_mut() };
         let len = bytes.len();
-        // SAFETY: Our internal bytes are guaranteed valid for the encoding. 
+        // SAFETY: Our internal bytes are guaranteed valid for the encoding.
         unsafe { Str::from_bytes_unchecked_mut(&mut bytes[..len - 1]) }
     }
 

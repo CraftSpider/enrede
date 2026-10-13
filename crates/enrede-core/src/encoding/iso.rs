@@ -32,24 +32,6 @@ mod iso_9;
 #[cfg(feature = "iso8859_1")]
 #[doc(inline)]
 pub use iso_1::*;
-#[cfg(feature = "iso8859_10")]
-#[doc(inline)]
-pub use iso_10::*;
-#[cfg(feature = "iso8859_11")]
-#[doc(inline)]
-pub use iso_11::*;
-#[cfg(feature = "iso8859_13")]
-#[doc(inline)]
-pub use iso_13::*;
-#[cfg(feature = "iso8859_14")]
-#[doc(inline)]
-pub use iso_14::*;
-#[cfg(feature = "iso8859_15")]
-#[doc(inline)]
-pub use iso_15::*;
-#[cfg(feature = "iso8859_16")]
-#[doc(inline)]
-pub use iso_16::*;
 #[cfg(feature = "iso8859_2")]
 #[doc(inline)]
 pub use iso_2::*;
@@ -74,3 +56,21 @@ pub use iso_8::*;
 #[cfg(feature = "iso8859_9")]
 #[doc(inline)]
 pub use iso_9::*;
+#[cfg(feature = "iso8859_10")]
+#[doc(inline)]
+pub use iso_10::*;
+#[cfg(feature = "iso8859_11")]
+#[doc(inline)]
+pub use iso_11::*;
+#[cfg(feature = "iso8859_13")]
+#[doc(inline)]
+pub use iso_13::*;
+#[cfg(feature = "iso8859_14")]
+#[doc(inline)]
+pub use iso_14::*;
+#[cfg(feature = "iso8859_15")]
+#[doc(inline)]
+pub use iso_15::*;
+#[cfg(feature = "iso8859_16")]
+#[doc(inline)]
+pub use iso_16::*;

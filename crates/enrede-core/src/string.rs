@@ -12,13 +12,13 @@ use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut};
 #[cfg(feature = "serde")]
 use serde::{
-    de::{self, Unexpected},
     Deserialize, Deserializer, Serialize, Serializer,
+    de::{self, Unexpected},
 };
 
 use crate::cstring::{CString, NulError};
 use crate::encoding::{
-    AlwaysValid, ArrayLike, Encoding, NullTerminable, Utf32, Utf8, ValidateError,
+    AlwaysValid, ArrayLike, Encoding, NullTerminable, Utf8, Utf32, ValidateError,
 };
 use crate::str::Str;
 

@@ -2,7 +2,7 @@ use crate::encoding::sealed::Sealed;
 use crate::encoding::{Enc, NullTerminable, ValidateError};
 use crate::{Encoding, Str};
 #[cfg(feature = "rand")]
-use rand::{distr::Distribution, Rng};
+use rand::{Rng, distr::Distribution};
 
 const DECODE_MAP_8859_16: [char; 96] = [
     ' ', 'Ą', 'ą', 'Ł', '€', '„', 'Š', '§', 'š', '©', 'Ș', '«', 'Ź', '\u{AD}', 'ź', 'Ż', '°', '±',

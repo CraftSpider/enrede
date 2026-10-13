@@ -2,7 +2,7 @@ use crate::encoding::sealed::Sealed;
 use crate::encoding::{AlwaysValid, Enc, NullTerminable, ValidateError};
 use crate::{Encoding, Str};
 #[cfg(feature = "rand")]
-use rand::{distr::Distribution, Rng};
+use rand::{Rng, distr::Distribution};
 
 /// The [ASCII](https://en.wikipedia.org/wiki/ASCII) encoding.
 #[non_exhaustive]
@@ -38,11 +38,7 @@ impl Encoding for Ascii {
     }
 
     fn encode_char(c: char) -> Option<Self::Bytes> {
-        if c as u32 > 127 {
-            None
-        } else {
-            Some(c as u8)
-        }
+        if c as u32 > 127 { None } else { Some(c as u8) }
     }
 
     fn decode_char(str: &Str<Self>) -> (char, &Str<Self>) {
@@ -54,11 +50,7 @@ impl Encoding for Ascii {
     }
 
     fn char_len(c: char) -> usize {
-        if (c as u32) < 128 {
-            1
-        } else {
-            0
-        }
+        if (c as u32) < 128 { 1 } else { 0 }
     }
 }
 
@@ -114,11 +106,7 @@ impl Encoding for ExtendedAscii {
     }
 
     fn char_len(c: char) -> usize {
-        if (c as u32) < 256 {
-            1
-        } else {
-            0
-        }
+        if (c as u32) < 256 { 1 } else { 0 }
     }
 }
 

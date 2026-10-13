@@ -2,7 +2,7 @@ use crate::encoding::sealed::Sealed;
 use crate::encoding::{Enc, NullTerminable, ValidateError};
 use crate::{Encoding, Str};
 #[cfg(feature = "rand")]
-use rand::{distr::Distribution, Rng};
+use rand::{Rng, distr::Distribution};
 
 const ENCODE_MAP_1251: phf::Map<char, u8> = phf::phf_map! {
     'Ђ' => 0, 'Ѓ' => 1, '‚' => 2, 'ѓ' => 3, '„' => 4, '…' => 5, '†' => 6, '‡' => 7, '€' => 8,

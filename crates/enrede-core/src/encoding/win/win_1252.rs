@@ -2,7 +2,7 @@ use crate::encoding::sealed::Sealed;
 use crate::encoding::{AlwaysValid, Enc, NullTerminable, ValidateError};
 use crate::{Encoding, Str};
 #[cfg(feature = "rand")]
-use rand::{distr::Distribution, Rng};
+use rand::{Rng, distr::Distribution};
 
 const DECODE_MAP_1252: [char; 32] = [
     '€', '\u{81}', '‚', 'ƒ', '„', '…', '†', '‡', 'ˆ', '‰', 'Š', '‹', 'Œ', '\u{8D}', 'Ž', '\u{8F}',
@@ -146,11 +146,7 @@ impl Encoding for Win1252Loose {
     }
 
     fn char_len(c: char) -> usize {
-        if (c as u32) > 255 {
-            0
-        } else {
-            1
-        }
+        if (c as u32) > 255 { 0 } else { 1 }
     }
 }
 
