@@ -1,15 +1,20 @@
+//! Encoding benchmarks for `enrede` - standard benchmarks for measuring encoding, decoding, and
+//! validation speed.
+
+#![allow(missing_docs)]
+
 use byte_unit::{Byte, Unit};
 use core::hint::black_box;
-use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
+use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
 use enrede::encoding::{
-    ArrayLike, Ascii, ExtendedAscii, Iso8859_1, Iso8859_10, Iso8859_11, Iso8859_13, Iso8859_14,
-    Iso8859_15, Iso8859_16, Iso8859_2, Iso8859_3, Iso8859_4, Iso8859_5, Iso8859_6, Iso8859_7,
-    Iso8859_8, Iso8859_9, JisX0201, JisX0208, MacRoman, ShiftJIS, Utf16BE, Utf16LE, Utf32BE,
+    ArrayLike, Ascii, ExtendedAscii, Iso8859_1, Iso8859_2, Iso8859_3, Iso8859_4, Iso8859_5,
+    Iso8859_6, Iso8859_7, Iso8859_8, Iso8859_9, Iso8859_10, Iso8859_11, Iso8859_13, Iso8859_14,
+    Iso8859_15, Iso8859_16, JisX0201, JisX0208, MacRoman, ShiftJIS, Utf16BE, Utf16LE, Utf32BE,
     Utf32LE, Win1251, Win1252, Win1252Loose,
 };
 use enrede::{Encoding, String};
 use rand::distr::Distribution;
-use rand::{rng, Rng};
+use rand::{Rng, rng};
 
 mod utils;
 
@@ -69,6 +74,7 @@ fn bench_decode<E: Encoding + Distribution<char>>(c: &mut Criterion) {
     });
 }
 
+/// Run all benchmarks against an encoding
 pub fn bench_encoding<E: Encoding + Distribution<char>>(c: &mut Criterion) {
     bench_validate::<E>(c, KILOBYTE);
     bench_validate::<E>(c, MEGABYTE);
@@ -76,6 +82,7 @@ pub fn bench_encoding<E: Encoding + Distribution<char>>(c: &mut Criterion) {
     bench_decode::<E>(c);
 }
 
+/// Benchmark all supported encodings
 pub fn bench_all(c: &mut Criterion) {
     bench_encoding::<Ascii>(c);
     bench_encoding::<ExtendedAscii>(c);
